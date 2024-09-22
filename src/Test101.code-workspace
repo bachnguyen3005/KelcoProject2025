@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "kelco_test_001",
+			"path": ".."
+		},
+		{
+			"name": "Esp32",
+			"path": "../../Esp32"
+		}
+	],
+	"settings": {}
+}
