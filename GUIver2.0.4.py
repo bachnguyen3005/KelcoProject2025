@@ -8,6 +8,11 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtGui import QImage, QPixmap, QPainter
+
+
+import cv2
 
 
 class Ui_MainWindow(object):
@@ -176,6 +181,21 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+
+        self.cap = cv2.VideoCapture(0)
+
+        self.viewButton.clicked.connect(self.startWebcam)
+
+        self.closeButton.clicked.connect(self.stop_webcam)
+
+        self.resetButton.clicked.connect(self.resetWindow)
+
+        self.exitButton.clicked.connect(self.confirmExit)
+
+        self.startButton.clicked.connect(self.confirmStart)
+
+
+
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Automated Calibration System GUI"))
@@ -191,12 +211,97 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("MainWindow", "Webcam"))
         self.menuMain_layout.setTitle(_translate("MainWindow", "Main GUI"))
 
+    def startWebcam(self):
+        # Set up timer for updating the frame
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)  # Update frame every 30 ms
+
+    def stop_webcam(self):
+        self.timer.stop()
+        self.cap.release()
+
+    def exitWindow(self):
+        MainWindow.close()
+
+
+    def resetWindow(self):
+        self.new_window = QtWidgets.QMainWindow()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self.new_window)
+        self.new_window.showFullScreen()        
+
+    def confirmExit(self):
+        msgBox = QtWidgets.QMessageBox()
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        font = QtGui.QFont()
+        font.setPointSize(20)  # Set a larger font size
+        msgBox.setFont(font)
+        msgBox.setStyleSheet(""" QMessageBox {
+                                    min-width: 400px;  /* Set the minimum width */
+                                    min-height: 200px;  /* Set the minimum height */
+                                }
+                                QPushButton {
+                                    font-size: 14px;  /* Increase font size of buttons */
+                                    padding: 10px;     /* Add padding to make buttons larger */
+                                }
+                                QLabel {
+                                    font-size: 16px;  /* Increase font size of the label text */
+                                }""")
+        msgBox.setWindowTitle('Confirm Exit')
+        msgBox.setText('Are you sure you want to exit?')
+
+
+
+        
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
+
+        response = msgBox.exec_()
+
+        if response == QtWidgets.QMessageBox.Yes:
+            QtWidgets.QApplication.quit()
+
+    def confirmStart(self):
+        msgBox = QtWidgets.QMessageBox()
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        font = QtGui.QFont()
+        font.setPointSize(20)  # Set a larger font size
+        msgBox.setFont(font)
+        msgBox.setStyleSheet(""" QMessageBox {
+                                    min-width: 400px;  /* Set the minimum width */
+                                    min-height: 200px;  /* Set the minimum height */
+                                }
+                                QPushButton {
+                                    font-size: 14px;  /* Increase font size of buttons */
+                                    padding: 10px;     /* Add padding to make buttons larger */
+                                }
+                                QLabel {
+                                    font-size: 16px;  /* Increase font size of the label text */
+                                }""")
+        msgBox.setWindowTitle('Confirm Start')
+        msgBox.setText('Are you sure you want to start?')
+
+
+
+        
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
+
+        response = msgBox.exec_()
+
+        if response == QtWidgets.QMessageBox.Yes:
+            QtWidgets.QApplication.quit()        
+
+
+
 
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyle(QtWidgets.QStyleFactory.create('Cleanlooks'))
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-    MainWindow.show()
+    MainWindow.showFullScreen()
     sys.exit(app.exec_())
