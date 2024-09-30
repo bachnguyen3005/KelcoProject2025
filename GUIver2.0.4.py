@@ -10,10 +10,12 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QImage, QPixmap, QPainter
-
-
+import serial
+from ocr import OCRProcessor
+from utils import SerialCommunicator
+from playsound import playsound
 import cv2
-
+from datetime import datetime
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -181,18 +183,171 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+        self.ocr_processor = OCRProcessor()
 
-        self.cap = cv2.VideoCapture(0)
+        self.arduino = SerialCommunicator(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
+
+        self.cap = cv2.VideoCapture(2)
 
         self.viewButton.clicked.connect(self.startWebcam)
 
         self.closeButton.clicked.connect(self.stop_webcam)
 
-        self.resetButton.clicked.connect(self.resetWindow)
+        self.resetButton.clicked.connect(self.confirmReset)
 
         self.exitButton.clicked.connect(self.confirmExit)
 
         self.startButton.clicked.connect(self.confirmStart)
+
+        self.stopButton.clicked.connect(self.snapshot)
+
+    def start(self):
+        self.arduino.send_command('A')  # Extend the actuator 2 and 3 and pump ON
+
+        command2check = "L"  # Check command from arduino
+        response = self.arduino.read_command()
+        print(response)
+
+        # Timer for after_delay execution
+        self.delay_timer = QTimer()
+        self.delay_timer.setSingleShot(True)  # Make sure the timer fires only once
+        self.delay_timer.timeout.connect(lambda: self.after_delay(response, command2check))
+        self.delay_timer.start(5000)  # 5-second delay before calling after_delay
+
+    def after_delay(self, response, command2check):
+        if response == command2check:
+
+            ret, frame = self.cap.read()
+            if ret:
+                # Process and crop the frame for OCR
+                rect_width = 500 
+                rect_height = 140 
+                rect_x = 70
+                rect_y = 150
+                cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                image_filename = f"SnapShotImages/processed_snapshot_LOCK2UNLOCK{timestamp}.jpg"
+
+                # Save the processed image for OCR
+                cv2.imwrite(image_filename, cropped_frame)
+
+                # Perform OCR on the cropped image
+                img_with_text, extracted_text = self.ocr_processor.run_ocr(image_filename)
+
+                # Perform further actions based on OCR result
+                if extracted_text.strip() == "LOCKED":
+
+                    playsound('Sound/LockedModeVer2.mp3')
+
+                    self.stop_timer = QTimer()
+                    self.stop_timer.setSingleShot(True)
+                    self.stop_timer.timeout.connect(lambda: self.arduino.send_command('K'))
+                    self.stop_timer.start(3000)  # 3-second delay before retracting actuator 2 and 3
+
+                    # Timer for second action: retract_button_2.click() (Turn off the pump controller)
+                    self.retract_timer = QTimer()
+                    self.retract_timer.setSingleShot(True)
+                    self.retract_timer.timeout.connect(lambda: self.arduino.send_command('C')) #Pump off
+                    self.retract_timer.start(6000)  # 6-second delay
+
+                    # Timer for third action: send_command('R') to extend actuators 2 and 3
+                    self.command_timer = QTimer()
+                    self.command_timer.setSingleShot(True)
+                    self.command_timer.timeout.connect(lambda: self.arduino.send_command('R')) #Extend Act2 and Act3
+                    self.command_timer.start(9000)  # 9-second delay
+
+                    # Timer for fourth action: Turn off the controller
+                    self.pumpOn_timer = QTimer()
+                    self.pumpOn_timer.setSingleShot(True)
+                    self.pumpOn_timer.timeout.connect(lambda: self.arduino.send_command('B')) #Pump on
+                    self.pumpOn_timer.start(12000)  # 12-second delay
+
+                    # Timer for retracting actuator 2 and 3 again
+                    self.retract_time_2 = QTimer()
+                    self.retract_time_2.setSingleShot(True)
+                    self.retract_time_2.timeout.connect(lambda: self.arduino.send_command('K')) #Retract Act2 and Act3
+                    self.retract_time_2.start(16000)  # 16-second delay
+
+                    self.calib_delay_timer = QTimer()
+                    self.calib_delay_timer.setSingleShot(True)
+                    self.calib_delay_timer.timeout.connect(lambda: self.arduino.send_command('D'))
+                    self.calib_delay_timer.start(21000)  # 5-second delay
+
+                    self.webcam_focus_delay = QTimer()
+                    self.webcam_focus_delay.setSingleShot(True)
+                    self.webcam_focus_delay.timeout.connect(lambda: playsound('Sound/waitToFocus.mp3'))
+                    self.webcam_focus_delay.start(41000)  # 20-second delay, wait for accessing calibration mode.
+
+                    self.preopen_air_delay = QTimer()
+                    self.preopen_air_delay.setSingleShot(True)
+                    self.preopen_air_delay.timeout.connect(lambda: playsound('Sound/openAir.mp3'))
+                    self.preopen_air_delay.start(46000)  # 5-second delay, wait for webcam.
+
+                    self.opening_air_delay = QTimer()
+                    self.opening_air_delay.setSingleShot(True)
+                    self.opening_air_delay.timeout.connect(lambda: self.arduino.send_command('I'))
+                    self.opening_air_delay.start(50000)  # 4-second delay, wait for opening air.
+
+                    self.while_opening_air_delay = QTimer()
+                    self.while_opening_air_delay.setSingleShot(True)
+                    self.while_opening_air_delay.timeout.connect(lambda: playsound('Sound/waitForPressure.mp3'))
+                    self.while_opening_air_delay.start(60000)  # 10-second delay, wait for pressue balancing.
+
+                    self.closing_air_delay = QTimer()
+                    self.closing_air_delay.setSingleShot(True)
+                    self.closing_air_delay.timeout.connect(lambda: playsound('Sound/closeAir.mp3'))
+                    self.closing_air_delay.start(65000)  # 10-second delay, wait for closing air.
+
+                    self.after_closing_air_delay = QTimer()
+                    self.after_closing_air_delay.setSingleShot(True)
+                    self.after_closing_air_delay.timeout.connect(lambda: self.arduino.send_command('H'))
+                    
+                    self.after_closing_air_delay.start(69000)  # 4-second delay, wait for closing air sound then close air. 
+
+                    self.preopening_middle_valve_delay = QTimer()
+                    self.preopening_middle_valve_delay.setSingleShot(True)
+                    self.preopening_middle_valve_delay.timeout.connect(lambda: playsound('Sound/middleValveOpen.mp3'))
+                    self.preopening_middle_valve_delay.start(71000)  # 4-second delay, wait for closing air. 
+
+                    self.opening_middle_valve_delay = QTimer()
+                    self.opening_middle_valve_delay.setSingleShot(True)
+                    self.opening_middle_valve_delay.timeout.connect(lambda: self.arduino.send_command('F'))
+                    self.opening_middle_valve_delay.start(73000)  # 2-second delay, wait for openning mid air to reduce pressure to 0.
+
+                    self.post_opening_middle_valve_delay = QTimer()
+                    self.post_opening_middle_valve_delay.setSingleShot(True)
+                    self.post_opening_middle_valve_delay.timeout.connect(lambda: self.arduino.send_command('J'))
+                    self.post_opening_middle_valve_delay.start(77000)  # 4-second delay, wait for openning mid air to reduce pressure to 0 and then close air.
+
+                    self.presnapshot_delay = QTimer()
+                    self.presnapshot_delay.setSingleShot(True)
+                    self.presnapshot_delay.timeout.connect(self.closeButton.click)
+                    self.presnapshot_delay.start(78000)
+
+                    self.pre2snapshot_delay = QTimer()
+                    self.pre2snapshot_delay.setSingleShot(True)
+                    self.pre2snapshot_delay.timeout.connect(self.viewButton.click)
+                    self.pre2snapshot_delay.start(79000)
+
+                    self.snapshot_delay = QTimer()
+                    self.snapshot_delay.setSingleShot(True)
+                    self.snapshot_delay.timeout.connect(self.stopButton.click)
+                    self.snapshot_delay.start(82000) # 4-second delay, wait for openning mid air to reduce pressure to 0 and then close air.
+
+
+                elif extracted_text.strip() == "UNLOCKED":
+                    playsound('Sound/UnlockedMode.mp3')
+                    # Implement further logic for unlocked mode
+                    self.arduino.send_command('K')  # Retract actuators 2 and 3
+                # Introduce a 5-second delay before calling afterDelayToCalib
+                    self.calib_delay_timer = QTimer()
+                    self.calib_delay_timer.setSingleShot(True)
+                    self.calib_delay_timer.timeout.connect(self.afterDelayToCalib)
+                    self.calib_delay_timer.start(5000)  # 5-second delay
+
+
 
 
 
@@ -213,6 +368,7 @@ class Ui_MainWindow(object):
 
     def startWebcam(self):
         # Set up timer for updating the frame
+        self.cap = cv2.VideoCapture(2)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(30)  # Update frame every 30 ms
@@ -226,10 +382,12 @@ class Ui_MainWindow(object):
 
 
     def resetWindow(self):
+        self.arduino.send_command('G')
+        self.stop_webcam()
         self.new_window = QtWidgets.QMainWindow()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self.new_window)
-        self.new_window.showFullScreen()        
+        self.new_window.showNormal()        
 
     def confirmExit(self):
         msgBox = QtWidgets.QMessageBox()
@@ -291,7 +449,135 @@ class Ui_MainWindow(object):
         response = msgBox.exec_()
 
         if response == QtWidgets.QMessageBox.Yes:
-            QtWidgets.QApplication.quit()        
+            self.start()        
+
+
+    def confirmReset(self):
+        msgBox = QtWidgets.QMessageBox()
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        font = QtGui.QFont()
+        font.setPointSize(20)  # Set a larger font size
+        msgBox.setFont(font)
+        msgBox.setStyleSheet(""" QMessageBox {
+                                    min-width: 400px;  /* Set the minimum width */
+                                    min-height: 200px;  /* Set the minimum height */
+                                }
+                                QPushButton {
+                                    font-size: 14px;  /* Increase font size of buttons */
+                                    padding: 10px;     /* Add padding to make buttons larger */
+                                }
+                                QLabel {
+                                    font-size: 16px;  /* Increase font size of the label text */
+                                }""")
+        msgBox.setWindowTitle('Confirm Reset')
+        msgBox.setText('Are you sure you want to restart?')
+
+
+
+        
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
+
+        response = msgBox.exec_()
+
+        if response == QtWidgets.QMessageBox.Yes:
+            self.resetWindow()
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:      
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb_frame.shape
+            bytes_per_line = ch * w
+            qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            qt_pixmap = QPixmap.fromImage(qt_image)
+            self.webcamFrame.setPixmap(qt_pixmap)
+            # self.webcam_label.setScaledContents(True)
+            self.webcamFrame.setAlignment(Qt.AlignCenter)
+            self.draw_red_rectangle()
+
+    def draw_red_rectangle(self):
+        # Create a QPixmap to paint on, using the same size as the webcam_label
+        pixmap = self.webcamFrame.pixmap()
+        if pixmap is None:
+            return  # Safety check to ensure pixmap exists
+
+        painter = QPainter(pixmap)
+        
+        # Set pen for drawing the hollow rectangle border
+        pen = painter.pen()
+        pen.setColor(Qt.red)       # Set the border color to red
+        pen.setWidth(3)            # Set the border width to 3 pixels
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)  # Ensure no fill for the rectangle
+
+        # Calculate the size and position for the hollow rectangle
+        rect_width = 470 
+        rect_height = 120 
+        rect_x = 80
+        rect_y = 160
+        
+        # Draw the hollow rectangle
+        painter.drawRect(rect_x, rect_y, rect_width, rect_height)
+        
+        # End painting
+        painter.end()
+        
+        # Update the label with the modified pixmap
+        self.webcamFrame.setPixmap(pixmap)
+
+    def snapshot(self):
+        # self.stop_webcam()
+        # self.startWebcam()
+        ret, frame = self.cap.read()
+        if ret:
+            # Calculate the size and position for the rectangle (same as in draw_red_rectangle)
+            rect_width = 470 #latest version of the dimension 
+            rect_height = 120 
+            rect_x = 100
+            rect_y = 160
+
+            # Crop the frame to the size of the red rectangle
+            cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            image_filename = f"SnapShotImages/processed_snapshot_simple{timestamp}.jpg"         
+            # Save the processed image for OCR
+            cv2.imwrite(image_filename, cropped_frame)
+
+            # Perform OCR on the cropped image
+            img_with_text, extracted_text = self.ocr_processor.run_ocr(image_filename)
+            result = self.ocr_processor.run_ocr_simple(image_filename)
+            print(result)
+
+            combined_string = ' '.join(result)
+
+            print(combined_string)
+            part1, part2, part3, part4 = combined_string.split()
+            print(part1)
+            
+
+            print(part2)
+            resultKpa = int(part2)
+            print(resultKpa)
+            self.kpaLCDNumber.display(resultKpa)
+
+            resultCal = int(part4)
+            print(resultCal)
+            self.calLCDNumber.display(resultCal)
+
+            # Convert the processed image to QImage
+            h, w, ch = img_with_text.shape
+            bytes_per_line = ch * w
+            qt_image = QImage(img_with_text.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            qt_pixmap = QPixmap.fromImage(qt_image)
+            
+            # Display the processed image in the captured_label
+            self.timer.stop()
+            self.cap.release()
+            self.webcamFrame.setPixmap(qt_pixmap)
+            self.webcamFrame.setAlignment(Qt.AlignCenter)
+
 
 
 
@@ -303,5 +589,5 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-    MainWindow.showFullScreen()
+    MainWindow.showNormal()
     sys.exit(app.exec_())
