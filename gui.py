@@ -18,7 +18,7 @@ class ActuatorControl(QWidget):
         # Initialize OCR Processor and Serial Communicator
         self.ocr_processor = OCRProcessor()
 
-        # self.arduino = SerialCommunicator(port='/dev/ttyUSB1', baudrate=115200, timeout=1)
+        self.arduino = SerialCommunicator(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
 
         # self.arduino = SerialCommunicator(port='/dev/ttyACM0', baudrate=9600, timeout=1)
       
@@ -130,45 +130,12 @@ class ActuatorControl(QWidget):
 
         main_layout.addLayout(frame_layout)
 
-        # # Text box for OCR output
-        # self.text_box = QTextEdit("Extracted text")
-        # bold_font = QFont('Arial', 20)
-        # bold_font.setBold(True)
-        # self.text_box.setFont(bold_font)
-        # main_layout.addWidget(self.text_box)
-
-
-
-        # LCD display section
-        lcd_layout = QHBoxLayout()
-
-        # Kpa display
-        kpa_layout = QVBoxLayout()
-        self.kpa_label = QLabel("Kpa")
-        self.kpa_label.setAlignment(Qt.AlignCenter)
-        self.kpa_label.setFont(QFont('Arial', 40, QFont.Bold))
-        kpa_layout.addWidget(self.kpa_label)
-
-        self.kpa_lcd = QLCDNumber(self)
-        self.kpa_lcd.setDigitCount(6)
-        self.kpa_lcd.setStyleSheet("background-color: yellow; color: green;")
-        kpa_layout.addWidget(self.kpa_lcd)
-        lcd_layout.addLayout(kpa_layout)
-
-        # Cal display
-        cal_layout = QVBoxLayout()
-        self.cal_label = QLabel("Cal")
-        self.cal_label.setAlignment(Qt.AlignCenter)
-        self.cal_label.setFont(QFont('Arial', 40, QFont.Bold))
-        cal_layout.addWidget(self.cal_label)
-
-        self.cal_lcd = QLCDNumber(self)
-        self.cal_lcd.setDigitCount(6)
-        self.cal_lcd.setStyleSheet("background-color: yellow; color: green;")
-        cal_layout.addWidget(self.cal_lcd)
-        lcd_layout.addLayout(cal_layout)
-
-        main_layout.addLayout(lcd_layout)
+        # Text box for OCR output
+        self.text_box = QTextEdit("Extracted text")
+        bold_font = QFont('Arial', 20)
+        bold_font.setBold(True)
+        self.text_box.setFont(bold_font)
+        main_layout.addWidget(self.text_box)
 
 
         # Buttons
@@ -507,30 +474,30 @@ class ActuatorControl(QWidget):
                     # Timer for second action: retract_button_2.click() (Turn off the pump controller)
                     self.retract_timer = QTimer(self)
                     self.retract_timer.setSingleShot(True)
-                    self.retract_timer.timeout.connect(self.stop_button_2.click)
+                    self.retract_timer.timeout.connect(lambda: self.arduino.send_command('C')) #Pump off
                     self.retract_timer.start(6000)  # 6-second delay
 
                     # Timer for third action: send_command('R') to extend actuators 2 and 3
                     self.command_timer = QTimer(self)
                     self.command_timer.setSingleShot(True)
-                    self.command_timer.timeout.connect(lambda: self.arduino.send_command('R'))
+                    self.command_timer.timeout.connect(lambda: self.arduino.send_command('R')) #Extend Act2 and Act3
                     self.command_timer.start(9000)  # 9-second delay
 
                     # Timer for fourth action: Turn off the controller
                     self.pumpOn_timer = QTimer(self)
                     self.pumpOn_timer.setSingleShot(True)
-                    self.pumpOn_timer.timeout.connect(self.retract_button_2.click)
+                    self.pumpOn_timer.timeout.connect(lambda: self.arduino.send_command('B')) #Pump on
                     self.pumpOn_timer.start(12000)  # 12-second delay
 
                     # Timer for retracting actuator 2 and 3 again
                     self.retract_time_2 = QTimer(self)
                     self.retract_time_2.setSingleShot(True)
-                    self.retract_time_2.timeout.connect(lambda: self.arduino.send_command('K'))
+                    self.retract_time_2.timeout.connect(lambda: self.arduino.send_command('K')) #Retract Act2 and Act3
                     self.retract_time_2.start(16000)  # 16-second delay
 
                     self.calib_delay_timer = QTimer(self)
                     self.calib_delay_timer.setSingleShot(True)
-                    self.calib_delay_timer.timeout.connect(self.afterDelayToCalib)
+                    self.calib_delay_timer.timeout.connect(lambda: self.arduino.send_command('D'))
                     self.calib_delay_timer.start(21000)  # 5-second delay
 
                     self.webcam_focus_delay = QTimer(self)
@@ -561,6 +528,7 @@ class ActuatorControl(QWidget):
                     self.after_closing_air_delay = QTimer(self)
                     self.after_closing_air_delay.setSingleShot(True)
                     self.after_closing_air_delay.timeout.connect(self.retract_button_4.click)
+                    
                     self.after_closing_air_delay.start(69000)  # 4-second delay, wait for closing air sound then close air. 
 
                     self.preopening_middle_valve_delay = QTimer(self)
@@ -598,7 +566,7 @@ class ActuatorControl(QWidget):
         self.delay_timer_arduino_to_calib = QTimer(self)
         self.delay_timer_arduino_to_calib.setSingleShot(True)
         self.delay_timer_arduino_to_calib.timeout.connect(lambda: playsound('Sound/calibration_mode.mp3'))
-        self.delay_timer_arduino_to_calib.start(16000)  # 16-second delay
+        self.delay_timer_arduino_to_calib.start(21000)  # 16-second delay
 
 
 
