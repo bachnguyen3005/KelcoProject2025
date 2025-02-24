@@ -18,7 +18,7 @@ class ActuatorControl(QWidget):
         # Initialize OCR Processor and Serial Communicator
         self.ocr_processor = OCRProcessor()
 
-        self.arduino = SerialCommunicator(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
+        # self.arduino = SerialCommunicator(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
 
         # self.arduino = SerialCommunicator(port='/dev/ttyACM0', baudrate=9600, timeout=1)
       
@@ -328,9 +328,9 @@ class ActuatorControl(QWidget):
         painter.setBrush(Qt.NoBrush)  # Ensure no fill for the rectangle
 
         # Calculate the size and position for the hollow rectangle
-        rect_width = 550 #previous 450
+        rect_width = 500 
         rect_height = 140 
-        rect_x = 50 #previous 100
+        rect_x = 70
         rect_y = 150
         
         # Draw the hollow rectangle
@@ -362,9 +362,9 @@ class ActuatorControl(QWidget):
         ret, frame = self.cap.read()
         if ret:
             # Calculate the size and position for the rectangle (same as in draw_red_rectangle)
-            rect_width = 450 
-            rect_height = 130 
-            rect_x = 100
+            rect_width = 500 #latest version of the dimension 
+            rect_height = 140 
+            rect_x = 70
             rect_y = 150
 
             # Crop the frame to the size of the red rectangle
@@ -430,9 +430,9 @@ class ActuatorControl(QWidget):
             ret, frame = self.cap.read()
             if ret:
                 # Process and crop the frame for OCR
-                rect_width = 450
-                rect_height = 130
-                rect_x = 100
+                rect_width = 500 
+                rect_height = 140 
+                rect_x = 70
                 rect_y = 150
                 cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
 

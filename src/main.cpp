@@ -12,7 +12,7 @@ const int relay8 = 9; //IN8
 const int relay9 = 10; 
 const int relay10 = 11;
 const int relay11 = 12;
-// const int relay12 = 13; 
+const int LED = 13; 
 
 void setup() {
   //Baudrate of serial commnunication 
@@ -29,8 +29,10 @@ void setup() {
   pinMode(relay9, OUTPUT);
   pinMode(relay10, OUTPUT);
   pinMode(relay11, OUTPUT);
+  pinMode(LED, OUTPUT);
   digitalWrite(relay11, HIGH);
   // digitalWrite(relay12, HIGH);
+  digitalWrite(LED,LOW);
 }
 // Extend actuator functions //
 void extendActuator(){
@@ -200,7 +202,7 @@ void loop() {
         break;
 
       case 'G':
-        extendActuator4();
+        digitalWrite(LED,HIGH);
         break;
 
       case 'H':
