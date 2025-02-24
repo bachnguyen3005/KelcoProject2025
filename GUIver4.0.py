@@ -56,6 +56,7 @@ class Ui_MainWindow(object):
         self.comboBox.setGeometry(QtCore.QRect(110, 10, 181, 29))
         self.comboBox.setCurrentText("")
         self.comboBox.setObjectName("comboBox")
+        self.populate_model_list()
         self.calLabel = QtWidgets.QLabel(self.tab_3)
         self.calLabel.setGeometry(QtCore.QRect(480, 140, 111, 41))
         font = QtGui.QFont()
@@ -220,8 +221,13 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         self.comboBox.setCurrentIndex(-1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        
+        # Add this after populating the combo box
+        self.comboBox.currentIndexChanged.connect(self.on_model_selected)
+        self.lowVoltageTestResult.setText("OK")
 
     def retranslateUi(self, MainWindow):
+
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Automated Calibration System GUI"))
         self.label.setText(_translate("MainWindow", "Model:"))
@@ -257,6 +263,23 @@ class Ui_MainWindow(object):
         self.viewButton.setText(_translate("MainWindow", "View"))
         self.Snap.setText(_translate("MainWindow", "Snap"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("MainWindow", "Webcam"))
+    def populate_model_list(self):
+        # Define the list of models you want to include
+        models = ["F60", "E30", "IPG-20", "Model D", "Model E"]
+        
+        # Add each model to the combo box
+        for model in models:
+                self.comboBox.addItem(model)
+        
+        # Optionally set a default selection
+        self.comboBox.setCurrentIndex(0)    
+    def on_model_selected(self, index):
+        selected_model = self.comboBox.itemText(index)
+        print(f"Selected model: {selected_model}")    
+
+
+
+
 
 
 if __name__ == "__main__":
