@@ -1,41 +1,90 @@
-import cv2
-import numpy as np
-from easyocr import Reader
-from PIL import Image as PilImage, ImageDraw, ImageFont
+from paddleocr import PaddleOCR
 
 class OCRProcessor:
     def __init__(self):
-        self.reader = Reader(['en', 'pt'], gpu=True)
-
-    def run_ocr(self, image_path):
-        img = cv2.imread(image_path)  
-        result = self.reader.readtext(img)
-        extracted_text = ""
-        for (box, text, probability) in result:
-            lt, rt, br, bl = self.box_coordinates(box)
-            img = self.draw_img(img, lt, br, text)
-            extracted_text += f"{text}\n"
-        return img, extracted_text
+        # Initialize PaddleOCR with English language and angle classification enabled
+        self.reader = PaddleOCR(
+            use_angle_cls=True, 
+            lang='en', show_log = False, 
+            det_dn_thresh=0.3,
+            det_db_box_thresh=0.3,
+            det_db_unclip_ratio=1.8,
+            use_gpu = True,
+            det_model_dir = 'ch_PP-OCRv4_det_infer',
+            rec_model_dir = 'ch_PP-OCRv4_rec_infer')                  
+        
+    def extract_numbers(self, image_path):
+        result = self.reader.ocr(image_path, det=True, rec=True, cls=False)
+        detected_texts = [res[1][0] for res in result[0]]
+        print(detected_texts)
+        
+        numbers_only = []
+        for text in detected_texts:
+            # Skip 'kPa' since it's not a number we want
+            if text == 'kPa':
+                continue
+                
+            # Handle case where number has leading zeros (like '0451')
+            if text.isdigit():
+                numbers_only.append(int(text))
+                continue
+                
+            # Handle case where text and numbers are combined (like 'Cal031')
+            import re
+            numeric_parts = re.findall(r'\d+', text)
+            for num_str in numeric_parts:
+                numbers_only.append(int(num_str))
+        
+        print(numbers_only)
+        if len(numbers_only) == 2:
+            return numbers_only
+        
+        # If the expected numbers weren't found, return "ERROR"
+        return "ERROR"
     
-    def run_ocr_simple(self, image_path):
-        img = cv2.imread(image_path)  
-        result = self.reader.readtext(img, detail=0)
+    
+    def extract_text(self, image_path):
+        """
+        Extract only text (non-numeric parts) from the detected text in the image.
+        """
+        result = self.reader.ocr(image_path, det = True, rec = True, cls=False)
+        detected_texts = [res[1][0] for res in result[0]]
+        text_only = []
 
-        return result
-       
-    def box_coordinates(self, box):
-        (lt, rt, br, bl) = box
-        lt = (int(lt[0]), int(lt[1]))
-        rt = (int(rt[0]), int(rt[1]))
-        br = (int(br[0]), int(br[1]))
-        bl = (int(bl[0]), int(bl[1]))
-        return lt, rt, br, bl
+        for text in detected_texts:
+            parts = text.split()
+            for part in parts:
+                if not part.isdigit():
+                    text_only.append(part)
 
-    def draw_img(self, img, lt, br, text, font_path='EasyOCR-master/calibri.ttf', color=(200, 255, 0), thickness=2, font_size=22):
-        cv2.rectangle(img, lt, br, color, thickness)
-        font = ImageFont.truetype(font_path, font_size)
-        img_pil = PilImage.fromarray(img)
-        draw = ImageDraw.Draw(img_pil)
-        draw.text((lt[0], lt[1] - font_size), text, font=font, fill=color)
-        img = np.array(img_pil)
-        return img
+        return text_only
+
+    def get_lock_status(self, image_path):
+        """
+        Determine if the detected text indicates 'UNLOCKED' or 'LOCKED'.
+        """
+        # Perform OCR
+        result = self.reader.ocr(image_path, det = True, rec = True, cls=False)
+        print(result)
+            # Check if OCR result is None or empty
+    # Check if OCR result is None, not a list, or empty
+        if not result or not isinstance(result, list) or len(result) == 0:
+            print("No text detected or OCR failed.")
+            return "UNKNOWN"
+        # Check if the result[0] is valid and contains detected texts
+        if not result[0] or not isinstance(result[0], list):
+            print("Invalid OCR output structure.")
+            return "UNKNOWN"
+            
+        detected_texts = [res[1][0] for res in result[0]]  # Extract text parts
+
+        # Check the first character of the detected text
+        for text in detected_texts:
+            if text.startswith('L'):
+                print("LOCKED")
+                return "LOCKED"
+            else:
+                return "UNLOCKED"
+
+        # Default to "UNKNOWN" if no valid text is found
+        return "UNKNOWN"
