@@ -48,7 +48,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def start_webcam(self):
         if not self.is_webcam_open_first_time:            
-            self.cap = cv2.VideoCapture(0)
+            self.cap = cv2.VideoCapture(2)
             time.sleep(1)
             self.is_webcam_open_first_time = True
         else:
@@ -217,10 +217,10 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.setBrush(Qt.NoBrush)  # Ensure no fill for the rectangle
 
         # Calculate the size and position for the hollow rectangle
-        rect_width = 470 
-        rect_height = 120 
-        rect_x = 80
-        rect_y = 160
+        rect_width = 400 
+        rect_height = 100 
+        rect_x = 120
+        rect_y = 280
         
         # Draw the hollow rectangle
         painter.drawRect(rect_x, rect_y, rect_width, rect_height)
