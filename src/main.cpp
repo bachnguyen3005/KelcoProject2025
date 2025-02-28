@@ -14,6 +14,49 @@ const int relay10 = 11;
 const int relay11 = 12;
 const int LED = 13; 
 
+// Command enumeration
+enum Command {
+  CMD_PUSH_ACTUATOR,    // Push sequence
+  CMD_EXTEND_BOTH,      // Extend both actuators
+  CMD_STOP,             // Stop operation
+  CMD_PUMP_SEQUENCE,    // Run pump sequence
+  CMD_RETRACT_BOTH,     // Retract both actuators
+  CMD_PUMP_ON,          // Turn pump on
+  CMD_PUMP_OFF,         // Turn pump off
+  CMD_FULL_SEQUENCE,    // Run full sequence
+  CMD_LED_ON,           // Turn LED on
+  CMD_AIR_CLOSE,        // Close air valve
+  CMD_AIR_OPEN,         // Open air valve
+  CMD_INVALID           // Invalid command
+};
+
+// Command string mapping
+const char* const COMMAND_STRINGS[] = {
+  "PUSH",
+  "EXTEND_BOTH",
+  "STOP",
+  "PUMP_SEQ",
+  "RETRACT_BOTH",
+  "PUMP_ON",
+  "PUMP_OFF",
+  "FULL_SEQ",
+  "LED_ON",
+  "AIR_CLOSE",
+  "AIR_OPEN"
+};
+
+// Function to convert string to command enum
+Command getCommandFromString(String cmdString) {
+  cmdString.trim();  // Remove any whitespace
+  
+  for (int i = 0; i < CMD_INVALID; i++) {
+    if (cmdString.equals(COMMAND_STRINGS[i])) {
+      return static_cast<Command>(i);
+    }
+  }
+  return CMD_INVALID;
+}
+
 void setup() {
   //Baudrate of serial commnunication 
   Serial.begin(9600);
@@ -222,3 +265,94 @@ void loop() {
 }
 
 
+// void loop() {
+//   if (Serial.available()) {
+//     String commandString = Serial.readStringUntil('\n');
+//     Command command = getCommandFromString(commandString);
+
+//     switch (command) {
+//       case CMD_PUSH_ACTUATOR: //Previously 'E'
+//         extendActuator4();
+//         delay(1100);
+//         stopActuator();
+//         retractActuator4();
+//         delay(1100);
+//         stopActuator();
+//         break;
+
+//       case CMD_EXTEND_BOTH: //Previously 'R'
+//         extendActuator2();
+//         extendActuator3();
+//         delay(1150);
+//         stopActuator2();
+//         stopActuator3();
+//         break;
+
+//       case CMD_STOP: //Previously 'S'
+//         stopActuator();
+//         break;
+
+//       case CMD_PUMP_SEQUENCE: // Previously 'A'
+//         extendActuator2();
+//         extendActuator3();
+//         delay(1150);
+//         stopActuator2();
+//         stopActuator3();
+//         pumpON();
+//         for (int i = 0; i < 40; i++) {
+//           Serial.println("L");
+//           delay(100);
+//         }
+//         break;
+
+//       case CMD_RETRACT_BOTH: // Previously 'K'
+//         retractActuator2();
+//         retractActuator3();
+//         break;
+
+//       case CMD_PUMP_ON: // Previously 'B'
+//         pumpON();
+//         break;
+
+//       case CMD_PUMP_OFF: // Previously 'C'
+//         pumpOFF();
+//         break;
+
+//       case CMD_FULL_SEQUENCE: // Previously 'D'
+//         extendActuator2();
+//         extendActuator4();
+//         delay(1150);
+//         stopActuator2();
+//         stopActuator4();
+//         delay(4000);
+//         retractActuator4();
+//         delay(5000);
+//         retractActuator2();
+//         delay(2000);
+//         extendActuator();
+//         delay(1100);
+//         stopActuator();
+//         delay(2000);
+//         retractActuator();
+//         delay(2000);
+//         break;
+
+//       case CMD_LED_ON: // Previously 'G'
+//         digitalWrite(LED, HIGH);
+//         break;
+
+//       case CMD_AIR_CLOSE: // Previously 'H'
+//         closeAir();
+//         break;
+
+//       case CMD_AIR_OPEN: // Previously 'I'
+//         openAir();
+//         break;
+
+//       case CMD_INVALID:
+//         // Handle invalid command
+//         Serial.println("Invalid command received");
+//         break;
+//     }
+//   }
+// }
