@@ -71,20 +71,170 @@ class MainWindow(QtWidgets.QMainWindow):
             # Start the process
             self.confirm_start()
         else:
-            # Stop the process
-            self.confirm_stop()
-            if self.is_confirmStop_Yes:
-                self.startButton.setText("GO")
-                self.startButton.setStyleSheet("background-color: rgb(138, 226, 52);")
-                self.is_running = False
-            elif self.is_confirmStop_Yes == False:
-                return
+            self.startButton.setText("GO")
+            self.startButton.setStyleSheet("background-color: rgb(138, 226, 52);")
+            self.is_running = False
+            return
     
     def snapshot(self):
-        pass
+        ret, frame = self.cap.read()
+        if ret:
+            #Rectangle shape
+            rect_width = 400 
+            rect_height = 100 
+            rect_x = 120
+            rect_y = 280
+            # Crop the frame to the size of the red rectangle
+            cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            image_filename = f"KelcoProject2025/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
+            # Save the processed image for OCR
+            cv2.imwrite(image_filename, cropped_frame)
+            result_number= self.ocr_processor.extract_numbers(image_filename)
+            if result_number == "ERROR":
+                QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error")
+                self.confirmFinish()
+            else: # Successfully extract text 
+                print(result_number)
+
+                kPa = result_number[0]
+                Cal = result_number[1]
+
+                self.kpaNumber.setText(str(kPa))
+                self.calNumber.setText(str(Cal))
+
+                # if kPa == 0:
+                #     print('Green')
+                #     self.arduino.send_command('E')  # Turn on Green LED then press P twice
+                #     self.confirmFinish()
+                # else:
+                #     QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Need to be calibrated manually")
+                #     self.confirmFinish()
+                    # delta = 50 - Cal  # Calculate the difference from the target calibration
+
+                    # self.max_try = 0  # Initialize try counter
+                    
+                    # if delta < 5:
+                    #     while kPa != 0 and self.max_try < 5:
+                    #         print("Pressing UP ARROW")
+                    #         self.arduino.send_command('Q')  # Send command to press the UP ARROW
+
+                    #         # Wait for Arduino's response
+                    #         while True:
+                    #             response = self.arduino.read_command()
+                    #             if response == "Q":
+                    #                 break
+
+                    #         # Capture a new image for OCR processing
+                    #         ret, frame = self.cap.read()
+                    #         if ret:
+                    #             rect_width = 470  # Latest version of the dimensions
+                    #             rect_height = 120
+                    #             rect_x = 100
+                    #             rect_y = 160
+
+                    #             # Crop the frame to the red rectangle's size
+                    #             cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+                    #             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    #             image_filename = f"/home/billy/GUI/SnapShotImages/processed_snapshot_FAULT{timestamp}.jpg"
+
+                    #             # Save the processed image for OCR
+                    #             cv2.imwrite(image_filename, cropped_frame)
+
+                    #             # Perform OCR on the cropped image
+                    #             result_number_calib = self.ocr_processor.extract_numbers(image_filename)
+
+                    #             if result_number_calib == "ERROR":
+                    #                 print("ERROR")
+                    #                 QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Webcam cannot focus. Please check again!")
+                    #                 self.confirmFinish()                                    
+                    #             else:
+                    #                 # Extract and display the new kPa and Cal values
+                    #                 current_kPa = result_number_calib[0]
+                    #                 current_Cal = result_number_calib[1]
+
+                    #                 self.kpaLCDNumber.display(current_kPa)
+                    #                 self.calLCDNumber.display(current_Cal)
+
+                    #                 # Update delta and retry counter
+                    #                 delta = 50 - current_Cal
+                    #                 self.max_try += 1
+                                    
+                    #                 if current_kPa == 0:
+                    #                     print("Calibrate successfully")
+                    #                     self.confirmFinish()
+                    #                     break
+
+                    #     if self.max_try >= 5:
+                    #         print("Max attempts reached. Calibration failed.")
+                    #         QtWidgets.QMessageBox.warning(self.centralwidget, "Max attempts reached. Calibration failed.")                            
+                    #         self.confirmFinish()
+
+                            
+                                 
+                    # elif -5 < delta < 0: #Cal > 50 and Cal < 55
+                    #     while kPa != 0 and self.max_try < 5:
+                    #         print("Pressing DOWN ARROW")
+                    #         self.arduino.send_command('S')  # Send command to press the UP ARROW
+
+                    #         # Wait for Arduino's response
+                    #         while True:
+                    #             response = self.arduino.read_command()
+                    #             if response == "S":
+                    #                 break
+
+                    #         # Capture a new image for OCR processing
+                    #         ret, frame = self.cap.read()
+                    #         if ret:
+                    #             rect_width = 470  # Latest version of the dimensions
+                    #             rect_height = 120
+                    #             rect_x = 100
+                    #             rect_y = 160
+
+                    #             # Crop the frame to the red rectangle's size
+                    #             cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+                    #             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    #             image_filename = f"/home/billy/GUI/SnapShotImages/processed_snapshot_FAULT{timestamp}.jpg"
+
+                    #             # Save the processed image for OCR
+                    #             cv2.imwrite(image_filename, cropped_frame)
+
+                    #             # Perform OCR on the cropped image
+                    #             result_number_calib = self.ocr_processor.extract_numbers(image_filename)
+
+                    #             if result_number_calib == "ERROR":
+                    #                 print("ERROR")
+                    #                 QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Webcam cannot focus. Please check again!")
+                    #                 self.confirmFinish()                                    
+                    #             else:
+                    #                 # Extract and display the new kPa and Cal values
+                    #                 current_kPa = result_number_calib[0]
+                    #                 current_Cal = result_number_calib[1]
+
+                    #                 self.kpaLCDNumber.display(current_kPa)
+                    #                 self.calLCDNumber.display(current_Cal)
+
+                    #                 # Update delta and retry counter
+                    #                 delta = 50 - current_Cal
+                    #                 self.max_try += 1
+                                    
+                    #                 if current_kPa == 0:
+                    #                     print("Calibrate successfully")
+                    #                     self.confirmFinish()
+                    #                     break
+
+                    #     if self.max_try >= 5:
+                    #         print("Max attempts reached. Calibration failed.")
+                    #         QtWidgets.QMessageBox.warning(self.centralwidget, "Max attempts reached", "Calibration failed.")                            
+                    #         self.confirmFinish()
+                
+                                    
+                    # else:
+                    #     QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Unable to calibrate. Check this again!")
+                    #     self.confirmFinish() 
     
     def initialize_ocr(self): 
-        pass
+        self.ocr_processor = OCRProcessor()
     
     def confirm_start(self):
         msgBox = QtWidgets.QMessageBox()
@@ -127,39 +277,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else: 
             return
     
-    def confirm_stop(self):
-        msgBox = QtWidgets.QMessageBox()
-        msgBox.setIcon(QtWidgets.QMessageBox.Question)
-        font = QtGui.QFont()
-        font.setPointSize(20)  # Set a larger font size
-        msgBox.setFont(font)
-        msgBox.setStyleSheet(""" QMessageBox {
-                                    min-width: 600px;  /* Set the minimum width */
-                                    min-height: 300px;  /* Set the minimum height */
-                                }
-                                QPushButton {
-                                    font-size: 25px;  /* Increase font size of buttons */
-                                    padding: 15px;     /* Add padding to make buttons larger */
-                                }
-                                QLabel {
-                                    font-size: 30px;  /* Increase font size of the label text */
-                                }""")
-        msgBox.setWindowTitle('Confirm Stop')
-        msgBox.setText('Are you sure you want to stop?')        
-        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
-        response = msgBox.exec_()
-        if response == QtWidgets.QMessageBox.Yes:
-            self.is_confirmStop_Yes = True
-            self.stop()
-        elif response == QtWidgets.QMessageBox.No:
-            self.is_confirmStop_Yes = False
-
     def start(self):
         self.calNumber.setText('0') # Reset the value to 0
         self.kpaNumber.setText('0') # Reset the value to 0
         if self.is_webcam_open:
-            self.arduino.send_command('A')  # Extend the actuator 2 and 3 and pump ON
+            self.arduino.send_command('CMD_PUMP_SEQUENCE')  # Extend the actuator 2 and 3 and pump ON
 
             command2check = "L"  # Check command from arduino
             response = self.arduino.read_command()
@@ -172,7 +294,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.delay_timer.start(5000)  # 5-second delay before calling after_delay
             self.timers.append(self.delay_timer)
         else:
-            QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Could not open webcam. Click View button again.")
+            QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "ERROR")
             return        
 
     def stop(self):
@@ -231,7 +353,197 @@ class MainWindow(QtWidgets.QMainWindow):
         # Update the label with the modified pixmap
         self.webcamFrame.setPixmap(pixmap)
 
+    def confirm_finish(self): 
+        msgBox = QtWidgets.QMessageBox()
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        font = QtGui.QFont()
+        font.setPointSize(20)  # Set a larger font size
+        msgBox.setFont(font)
+        msgBox.setStyleSheet(""" QMessageBox {
+                                    min-width: 500px;  /* Set the minimum width */
+                                    min-height: 300px;  /* Set the minimum height */
+                                }
+                                QPushButton {
+                                    font-size: 18px;  /* Increase font size of buttons */
+                                    padding: 12px;     /* Add padding to make buttons larger */
+                                }
+                                QLabel {
+                                    font-size: 25px;  /* Increase font size of the label text */
+                                }""")
+        msgBox.setWindowTitle('Confirm Finished')
+        msgBox.setText('Finished. Click YES')
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.Yes)
+        response = msgBox.exec_()
+        if response == QtWidgets.QMessageBox.Yes:
+            self.finish()       
 
+    def after_delay(self, response, command2check):
+        if response == command2check:
+            ret, frame = self.cap.read()
+            if ret:
+                # Process and crop the frame for OCR
+                rect_width = 400 
+                rect_height = 100 
+                rect_x = 120
+                rect_y = 280
+                cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width] # Crop LCD image 
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S") # Save the cropped image 
+                image_filename = f"KelcoProject2025/SnapShotImages/processed_snapshot_LOCK2UNLOCK{timestamp}.jpg"
+
+                # Save the processed image for OCR
+                cv2.imwrite(image_filename, cropped_frame)
+
+                # Perform OCR on the cropped image
+                extracted_text = self.ocr_processor.get_lock_status(image_filename)
+                print(extracted_text)
+
+                # Perform further actions based on OCR result
+                if extracted_text == "LOCKED":
+                    
+                    self.stop_timer = QTimer()
+                    self.stop_timer.setSingleShot(True)
+                    self.stop_timer.timeout.connect(lambda: self.arduino.send_command('CMD_RETRACT_BOTH'))
+                    self.stop_timer.start(3000)  # 3-second delay before retracting actuator 2 and 3
+                    self.timers.append(self.stop_timer)
+
+                    # Timer for second action: retract_button_2.click() (Turn off the pump controller)
+                    self.retract_timer = QTimer()
+                    self.retract_timer.setSingleShot(True)
+                    self.retract_timer.timeout.connect(lambda: self.arduino.send_command('CMD_PUMP_OFF')) #Pump off
+                    self.retract_timer.start(6000)  # 6-second delay
+                    self.timers.append(self.retract_timer)
+
+                    # Timer for third action: send_command('R') to extend actuators 2 and 3
+                    self.command_timer = QTimer()
+                    self.command_timer.setSingleShot(True)
+                    self.command_timer.timeout.connect(lambda: self.arduino.send_command('CMD_EXTEND_BOTH')) #Extend Act2 and Act3
+                    self.command_timer.start(9000)  # 9-second delay
+                    self.timers.append(self.command_timer)
+
+                    # Timer for fourth action: Turn off the controller
+                    self.pumpOn_timer = QTimer()
+                    self.pumpOn_timer.setSingleShot(True)
+                    self.pumpOn_timer.timeout.connect(lambda: self.arduino.send_command('CMD_PUMP_ON')) #Pump on
+                    self.pumpOn_timer.start(12000)  # 12-second delay
+                    self.timers.append(self.pumpOn_timer)
+
+                    # Timer for retracting actuator 2 and 3 again
+                    self.retract_time_2 = QTimer()
+                    self.retract_time_2.setSingleShot(True)
+                    self.retract_time_2.timeout.connect(lambda: self.arduino.send_command('CMD_RETRACT_BOTH')) #Retract Act2 and Act3
+                    self.retract_time_2.start(16000)  # 16-second delay
+                    self.timers.append(self.retract_time_2)
+
+                    self.calib_delay_timer = QTimer()
+                    self.calib_delay_timer.setSingleShot(True)
+                    self.calib_delay_timer.timeout.connect(lambda: self.arduino.send_command('CMD_FULL_SEQUENCE'))
+                    self.calib_delay_timer.start(21000)  # 5-second delay
+                    self.timers.append(self.calib_delay_timer)
+
+                    self.opening_air_delay = QTimer()
+                    self.opening_air_delay.setSingleShot(True)
+                    self.opening_air_delay.timeout.connect(lambda: self.arduino.send_command('CMD_AIR_OPEN'))
+                    self.opening_air_delay.start(50000-10000)  # 4-second delay, wait for opening air.
+                    self.timers.append(self.opening_air_delay)
+
+                    self.after_closing_air_delay = QTimer()
+                    self.after_closing_air_delay.setSingleShot(True)
+                    self.after_closing_air_delay.timeout.connect(lambda: self.arduino.send_command('CMD_AIR_CLOSE'))                    
+                    self.after_closing_air_delay.start(69000-10000)  # 4-second delay, wait for closing air sound then close air.
+                    self.timers.append(self.after_closing_air_delay) 
+
+                    self.opening_middle_valve_delay = QTimer()
+                    self.opening_middle_valve_delay.setSingleShot(True)
+                    self.opening_middle_valve_delay.timeout.connect(lambda: self.arduino.send_command('F'))
+                    self.opening_middle_valve_delay.start(73000-10000)  # 2-second delay, wait for openning mid air to reduce pressure to 0.
+                    self.timers.append(self.opening_middle_valve_delay)
+
+                    self.post_opening_middle_valve_delay = QTimer()
+                    self.post_opening_middle_valve_delay.setSingleShot(True)
+                    self.post_opening_middle_valve_delay.timeout.connect(lambda: self.arduino.send_command('J'))
+                    self.post_opening_middle_valve_delay.start(77000-10000)  # 4-second delay, wait for openning mid air to reduce pressure to 0 and then close air.
+                    self.timers.append(self.post_opening_middle_valve_delay)
+
+                    self.presnapshot_delay = QTimer()
+                    self.presnapshot_delay.setSingleShot(True)
+                    self.presnapshot_delay.timeout.connect(self.closeButton.click)
+                    self.presnapshot_delay.start(78000-10000)
+                    self.timers.append(self.presnapshot_delay)
+
+                    self.pre2snapshot_delay = QTimer()
+                    self.pre2snapshot_delay.setSingleShot(True)
+                    self.pre2snapshot_delay.timeout.connect(self.viewButton.click)
+                    self.pre2snapshot_delay.start(80000-10000)
+                    self.timers.append(self.pre2snapshot_delay)
+
+                    self.snapshot_delay = QTimer()
+                    self.snapshot_delay.setSingleShot(True)
+                    self.snapshot_delay.timeout.connect(self.Snap.click)
+                    self.snapshot_delay.start(84000-10000) # 4-second delay, wait for openning mid air to reduce pressure to 0 and then close air.
+                    self.timers.append(self.snapshot_delay)
+
+
+                elif extracted_text == "UNLOCKED":
+                    print('UNLOCKED')
+
+                    self.stop_timer = QTimer()
+                    self.stop_timer.setSingleShot(True)
+                    self.stop_timer.timeout.connect(lambda: self.arduino.send_command('K'))
+                    self.stop_timer.start(3000)  # 3-second delay before retracting actuator 2 and 3
+                    self.timers.append(self.stop_timer)
+
+                    self.calib_delay_timer = QTimer()
+                    self.calib_delay_timer.setSingleShot(True)
+                    self.calib_delay_timer.timeout.connect(lambda: self.arduino.send_command('D'))
+                    self.calib_delay_timer.start(8000)  # 5-second delay
+                    self.timers.append(self.calib_delay_timer)
+
+                    self.opening_air_delay = QTimer()
+                    self.opening_air_delay.setSingleShot(True)
+                    self.opening_air_delay.timeout.connect(lambda: self.arduino.send_command('I'))
+                    self.opening_air_delay.start(27000)  # 19-second delay, wait for opening air.
+                    self.timers.append(self.opening_air_delay)
+
+                    self.after_closing_air_delay = QTimer()
+                    self.after_closing_air_delay.setSingleShot(True)
+                    self.after_closing_air_delay.timeout.connect(lambda: self.arduino.send_command('H'))                    
+                    self.after_closing_air_delay.start(46000)  # 4-second delay, wait for closing air sound then close air.
+                    self.timers.append(self.after_closing_air_delay) 
+
+                    self.opening_middle_valve_delay = QTimer()
+                    self.opening_middle_valve_delay.setSingleShot(True)
+                    self.opening_middle_valve_delay.timeout.connect(lambda: self.arduino.send_command('F'))
+                    self.opening_middle_valve_delay.start(50000)  # 2-second delay, wait for openning mid air to reduce pressure to 0.
+                    self.timers.append(self.opening_middle_valve_delay)
+
+                    self.post_opening_middle_valve_delay = QTimer()
+                    self.post_opening_middle_valve_delay.setSingleShot(True)
+                    self.post_opening_middle_valve_delay.timeout.connect(lambda: self.arduino.send_command('J'))
+                    self.post_opening_middle_valve_delay.start(54000)  # 4-second delay, wait for closing mid air to reduce pressure to 0 and then close air.
+                    self.timers.append(self.post_opening_middle_valve_delay)
+
+                    self.presnapshot_delay = QTimer()
+                    self.presnapshot_delay.setSingleShot(True)
+                    self.presnapshot_delay.timeout.connect(self.closeButton.click)
+                    self.presnapshot_delay.start(55000)
+                    self.timers.append(self.presnapshot_delay)
+
+                    self.pre2snapshot_delay = QTimer()
+                    self.pre2snapshot_delay.setSingleShot(True)
+                    self.pre2snapshot_delay.timeout.connect(self.viewButton.click)
+                    self.pre2snapshot_delay.start(57000)
+                    self.timers.append(self.pre2snapshot_delay)
+
+                    self.snapshot_delay = QTimer()
+                    self.snapshot_delay.setSingleShot(True)
+                    self.snapshot_delay.timeout.connect(self.Snap.click)
+                    self.snapshot_delay.start(59000) # 4-second delay, wait for openning mid air to reduce pressure to 0 and then close air.
+                    self.timers.append(self.snapshot_delay)
+                else:
+                    QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Could not process. Click GO again.")
+                    self.confirmFinish() 
+                    return
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
