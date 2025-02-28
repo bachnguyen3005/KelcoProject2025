@@ -14,31 +14,45 @@ class OCRProcessor:
             rec_model_dir = 'ch_PP-OCRv4_rec_infer')                  
         
     def extract_numbers(self, image_path):
+        import re
+        
         result = self.reader.ocr(image_path, det=True, rec=True, cls=False)
         detected_texts = [res[1][0] for res in result[0]]
-        print(detected_texts)
+        print(f"Detected texts: {detected_texts}")
         
         numbers_only = []
         for text in detected_texts:
-            # Skip 'kPa' since it's not a number we want
-            if text == 'kPa':
-                continue
-                
-            # Handle case where number has leading zeros (like '0451')
-            if text.isdigit():
+            # Handle kPa cases (both with and without space)
+            if text.startswith('kPa'):
+                # Extract digits after 'kPa', removing any spaces
+                num_part = text[3:].strip()
+                if num_part.isdigit():
+                    numbers_only.append(int(num_part))
+                    continue
+            
+            # Handle 'Cal' vs 'Ca1' OCR mistake (with or without space)
+            if text.startswith('Ca1'):
+                # Remove the 'Ca1' prefix and any spaces
+                num_part = text[3:].strip()
+                if num_part.isdigit():
+                    numbers_only.append(int(num_part))
+                    continue
+                    
+            # Handle normal digit-only cases
+            elif text.isdigit():
                 numbers_only.append(int(text))
                 continue
                 
-            # Handle case where text and numbers are combined (like 'Cal031')
-            import re
+            # Extract all numeric sequences as fallback
             numeric_parts = re.findall(r'\d+', text)
             for num_str in numeric_parts:
                 numbers_only.append(int(num_str))
         
-        print(numbers_only)
+        print(f"Extracted numbers: {numbers_only}")
+        
         if len(numbers_only) == 2:
             return numbers_only
-        
+            
         # If the expected numbers weren't found, return "ERROR"
         return "ERROR"
     

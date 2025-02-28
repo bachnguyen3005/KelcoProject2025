@@ -88,13 +88,13 @@ class MainWindow(QtWidgets.QMainWindow):
             # Crop the frame to the size of the red rectangle
             cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            image_filename = f"KelcoProject2025/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
+            image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
             # Save the processed image for OCR
             cv2.imwrite(image_filename, cropped_frame)
             result_number= self.ocr_processor.extract_numbers(image_filename)
             if result_number == "ERROR":
                 QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error")
-                self.confirmFinish()
+                # self.confirmFinish()
             else: # Successfully extract text 
                 print(result_number)
 
@@ -106,10 +106,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 if kPa == 0:
                     self.lowVoltageTestResult.setText('OK')
-                    self.confirmFinish()
+                    # self.confirmFinish()
                 else:
                     self.lowVoltageTestResult.setText('ERROR')
-                    self.confirmFinish()
+                    # self.confirmFinish()
     
     def initialize_ocr(self): 
         self.ocr_processor = OCRProcessor()
