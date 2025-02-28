@@ -15,7 +15,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
         
         # Load the UI file directly
-        uic.loadUi('GUIver4.1.ui', self)
+        uic.loadUi('GUIver5.0.ui', self)
         
         # Now you can access UI elements directly
         self.populate_model_list()

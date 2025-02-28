@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1000</width>
-    <height>606</height>
+    <width>951</width>
+    <height>582</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -17,17 +17,13 @@
    </sizepolicy>
   </property>
   <property name="cursor">
-   <cursorShape>BlankCursor</cursorShape>
+   <cursorShape>ArrowCursor</cursorShape>
   </property>
   <property name="mouseTracking">
    <bool>false</bool>
   </property>
   <property name="windowTitle">
    <string>Automated Calibration System GUI</string>
-  </property>
-  <property name="windowIcon">
-   <iconset>
-    <normaloff>../../../../../../../Documents/PlatformIO/Projects/kelco_test_001/beta.jpg</normaloff>../../../../../../../Documents/PlatformIO/Projects/kelco_test_001/beta.jpg</iconset>
   </property>
   <property name="windowOpacity">
    <double>1.000000000000000</double>
@@ -36,7 +32,9 @@
    <bool>false</bool>
   </property>
   <property name="styleSheet">
-   <string notr="true">background-color: rgb(255, 255, 255);</string>
+   <string notr="true">background-color: rgb(46, 52, 54);
+background-color: rgb(85, 87, 83);
+</string>
   </property>
   <property name="iconSize">
    <size>
@@ -61,7 +59,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>30</y>
+      <y>10</y>
       <width>931</width>
       <height>521</height>
      </rect>
@@ -79,7 +77,7 @@
      </font>
     </property>
     <property name="cursor">
-     <cursorShape>PointingHandCursor</cursorShape>
+     <cursorShape>ArrowCursor</cursorShape>
     </property>
     <property name="autoFillBackground">
      <bool>false</bool>
@@ -466,6 +464,15 @@
         <height>23</height>
        </rect>
       </property>
+      <property name="cursor">
+       <cursorShape>ArrowCursor</cursorShape>
+      </property>
+      <property name="autoFillBackground">
+       <bool>false</bool>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: rgb(0, 0, 0);</string>
+      </property>
       <property name="value">
        <number>24</number>
       </property>
@@ -500,7 +507,7 @@
        <number>2</number>
       </property>
       <property name="text">
-       <string>Paddle Flow Test</string>
+       <string>Paddle Flow test</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -619,7 +626,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1000</width>
+     <width>951</width>
      <height>26</height>
     </rect>
    </property>
