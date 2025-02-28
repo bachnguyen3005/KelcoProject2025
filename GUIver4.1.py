@@ -35,7 +35,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
     def populate_model_list(self):
         # Add items to the combo box
-        models = ["Model A", "Model B", "Model C", "Model D"]
+        models = ["F60", "E30", "IPG20", "F29"]
         self.modelList.addItems(models)
         
     def on_start_clicked(self):
