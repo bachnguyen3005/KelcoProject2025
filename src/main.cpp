@@ -2,17 +2,21 @@
 
 // Relay pins declaration
 const int relay1 = 2; //IN1
-const int relay2 = 3; //IN2
-const int relay3 = 4; //IN3
-const int relay4 = 5; //IN4
-const int relay5 = 6; //IN5
-const int relay6 = 7; //IN6
-const int relay7 = 8; //IN7
-const int relay8 = 9; //IN8
-const int relay9 = 10; 
-const int relay10 = 11;
-const int relay11 = 12;
-const int LED = 13; 
+const int relay2 = 37; //IN2
+const int relay3 = 3; //IN3
+const int relay4 = 35; //IN4
+const int relay5 = 4; //IN5
+const int relay6 = 33; //IN6
+const int relay7 = 5; //IN7
+const int relay8 = 31; //IN8
+const int relay9 = 6; 
+const int relay10 = 29;
+const int relay11 = 7;
+const int relay12 = 27;
+const int relay13 = 8;
+const int relay14 = 26;
+const int relay15 = 9;
+const int relay16 = 23;
 
 // Command enumeration
 enum Command {
@@ -163,11 +167,11 @@ void openAir(){
 }
 
 void midCloseAir(){
-  digitalWrite(relay12, HIGH);
+  // digitalWrite(relay12, HIGH);
 }
 
 void midOpenAir(){
-  digitalWrite(relay12, LOW);
+  // digitalWrite(relay12, LOW);
 }
 
 void runLockedSequence() {
