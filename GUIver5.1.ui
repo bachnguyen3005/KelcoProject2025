@@ -533,17 +533,20 @@
        <set>Qt::AlignCenter</set>
       </property>
      </widget>
-     <widget class="QLineEdit" name="lineEdit">
+     <widget class="QLineEdit" name="logMessageLine">
       <property name="geometry">
        <rect>
         <x>20</x>
         <y>380</y>
-        <width>261</width>
+        <width>391</width>
         <height>61</height>
        </rect>
       </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
      </widget>
-     <widget class="QLabel" name="label">
+     <widget class="QLabel" name="logMessageLabel">
       <property name="geometry">
        <rect>
         <x>20</x>
@@ -579,8 +582,8 @@
      <zorder>progressBar</zorder>
      <zorder>paddleFlowTestlabel</zorder>
      <zorder>paddleFlowTestResult</zorder>
-     <zorder>lineEdit</zorder>
-     <zorder>label</zorder>
+     <zorder>logMessageLine</zorder>
+     <zorder>logMessageLabel</zorder>
     </widget>
     <widget class="QWidget" name="tab_4">
      <attribute name="title">
@@ -597,8 +600,8 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>276</width>
-           <height>80</height>
+           <width>903</width>
+           <height>549</height>
           </rect>
          </property>
          <layout class="QGridLayout" name="gridLayout_5">

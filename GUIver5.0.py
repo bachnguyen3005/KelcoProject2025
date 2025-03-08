@@ -15,7 +15,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
         
         # Load the UI file directly
-        uic.loadUi('GUIver5.0.ui', self)
+        uic.loadUi('GUIver5.1.ui', self)
         
         # Now you can access UI elements directly
         self.populate_model_list()
@@ -24,7 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_webcam_open_first_time = False
         self.is_running = False  # Track the current state (GO/STOP)
         self.timers = []  # List to store all the timers
-        # self.arduino = SerialCommunicator(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
+        # self.arduino = SerialCommunicator(port='/dev/ttyACM0', baudrate=9600, timeout=1)
         # Connect signals
         self.startButton.clicked.connect(self.on_start_clicked)
         self.viewButton.clicked.connect(self.start_webcam)
@@ -49,7 +49,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def start_webcam(self):
         if not self.is_webcam_open_first_time:            
-            self.cap = cv2.VideoCapture(2)
+            self.cap = cv2.VideoCapture(3)
             time.sleep(1)
             self.is_webcam_open_first_time = True
         else:
@@ -94,7 +94,7 @@ class MainWindow(QtWidgets.QMainWindow):
             result_number= self.ocr_processor.extract_numbers(image_filename)
             if result_number == "ERROR":
                 QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error")
-                # self.confirmFinish()
+                self.confirm_finish()
             else: # Successfully extract text 
                 print(result_number)
 
@@ -106,10 +106,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 if kPa == 0:
                     self.lowVoltageTestResult.setText('OK')
-                    # self.confirmFinish()
+                    self.confirm_finish()
                 else:
                     self.lowVoltageTestResult.setText('ERROR')
-                    # self.confirmFinish()
+                    self.confirm_finish()
     
     def initialize_ocr(self): 
         self.ocr_processor = OCRProcessor()
@@ -169,7 +169,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Reset the state machine to IDLE state
         self.state_machine.current_state = "IDLE"
         # Start the initial sequence
-        self.arduino.send_command('CMD_PUMP_SEQUENCE')  # Extend actuators and pump ON
+        self.arduino.send_command('PUMP_SEQ')  # Extend actuators and pump ON
         
         # Set up state machine monitoring
         self.state_machine.sequence_timer = QTimer()
@@ -183,17 +183,17 @@ class MainWindow(QtWidgets.QMainWindow):
         response = self.arduino.read_command() 
         if response:
             print(f"Received response: {response}")      
-            if response == "L":
+            if response == "DONE":
                 self.state_machine.sequence_timer.stop() #Stop sequence timer
                 ret, frame = self.cap.read()
                 if ret:
                     rect_width = 400 
                     rect_height = 100 
                     rect_x = 120
-                    rect_y = 280
+                    rect_y = 275
                     cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    image_filename = f"KelcoProject2025/SnapShotImages/processed_snapshot_LOCK2UNLOCK{timestamp}.jpg"
+                    image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/LOCK2UNLOCK{timestamp}.jpg"
                     cv2.imwrite(image_filename, cropped_frame) 
                     # Perform OCR
                     extracted_text = self.ocr_processor.get_lock_status(image_filename)
@@ -204,7 +204,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     else:
                         QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", 
                                                     "Could not recognize lock status. Please try again.")
-                        self.confirmFinish()
+                        self.confirm_finish()
 
     def stop(self):
         # Stop all timers when STOP button is pressed
@@ -213,7 +213,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 timer.stop()
         self.timers.clear()  # Clear the timers list
 
-        self.arduino.send_command('G') # Stop all
+        self.arduino.send_command('STOP') # Stop all
 
     def finish(self):
         self.startButton.setText("GO")
@@ -251,7 +251,7 @@ class MainWindow(QtWidgets.QMainWindow):
         rect_width = 400 
         rect_height = 100 
         rect_x = 120
-        rect_y = 280
+        rect_y = 275
         
         # Draw the hollow rectangle
         painter.drawRect(rect_x, rect_y, rect_width, rect_height)
