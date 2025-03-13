@@ -6,6 +6,7 @@ from utils import SerialCommunicator
 from led_detector import LEDDetector  
 from webcam_thread import WebcamThread
 from datetime import datetime
+from port_selection import PortSelectionDialog
 import serial
 import sys
 import time
@@ -47,7 +48,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
         
         # Load the UI file directly
-        uic.loadUi('GUIver5.1.ui', self)
+        uic.loadUi('GUIver5.2.ui', self)
         
         # Connect the emergency signal
         self.emergency_signal.connect(self.perform_emergency_stop, Qt.QueuedConnection)
@@ -55,6 +56,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Setup stdout redirection to logMessageLine
         self.stdout_redirector = OutputStreamRedirector(self.logMessageLine)
         sys.stdout = self.stdout_redirector
+        
+        self.webcam_index, self.arduino_port, self.arduino_baudrate = self.get_user_connection_preferences()
         
         # Now you can access UI elements directly
         self.populate_model_list()
@@ -70,7 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         try:
             # Directly use SerialCommunicator from utils
-            self.arduino = SerialCommunicator(port=SERIAL_PORT, baudrate=SERIAL_BAUDRATE, timeout=1)
+            self.arduino = SerialCommunicator(port=self.arduino_port, baudrate=self.arduino_baudrate, timeout=1)
             print("✅ Arduino connected successfully")
         except Exception as e:
             print(f"Error initializing Arduino: {str(e)}")
@@ -132,19 +135,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self.webcam_thread.stop_capture()
         
         # Determine camera index
-        camera_index = 2
-        if not self.is_webcam_open_first_time:
-            camera_index = 2
-            time.sleep(1)
-            self.is_webcam_open_first_time = True
-        
+        camera_index = self.webcam_index
+                
         # Start the webcam thread
         if self.webcam_thread.start_capture(camera_index):
             self.is_webcam_open = True
             print("✅ Webcam started ✅")
         else:
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", 
-                                        "Could not open webcam. Click View button again.")
+                                        "Could not open webcam")
 
     def stop_webcam(self):
         if self.is_webcam_open:
@@ -177,7 +176,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.perform_emergency_stop()
     
     def perform_emergency_stop(self):
-        """Immediately stop all operations - invoked by the emergency signal"""
         print("🚨 EMERGENCY STOP ACTIVATED 🚨")
         
         # First, set flags to indicate we're stopping
@@ -261,11 +259,20 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.calNumber.setText(str(Cal))
 
                     if kPa == 0:
-                        self.lowVoltageTestResult.setText('OK')
+                        self.lowVoltageTestResult.setText('PASS')
                         self.arduino.send_command('PRESS_P')
-                        self.finish() #Comment out to continue to test the paddle flow 
+                        # self.finish() #Comment out to continue to test the paddle flow 
+                        if(self.modelList.currentText() == "F60"):
+                            return
+                        else:
+                            self.finish()
+                        
                     else:
                         self.lowVoltageTestResult.setText('ERROR')
+                        if(self.modelList.currentText() == "F60"):
+                            return
+                        else:
+                            self.finish()
             else:
                 print("Error: No frame available from webcam")
                         
@@ -282,49 +289,167 @@ class MainWindow(QtWidgets.QMainWindow):
             traceback.print_exc()
     
     def confirm_start(self):
-        msgBox = QtWidgets.QMessageBox()
-        msgBox.setIcon(QtWidgets.QMessageBox.Question)
-        font = QtGui.QFont()
-        font.setPointSize(30)  # Set a larger font size
-        msgBox.setFont(font)
-        msgBox.setWindowTitle('Confirm Start')
-        msgBox.setStyleSheet(""" QMessageBox {
-                                    min-width: 500px;  /* Set the minimum width */
-                                    min-height: 300px;  /* Set the minimum height */
-                                }
-                                QPushButton {
-                                    font-size: 30px;  /* Increase font size of buttons */
-                                    padding: 20px;     /* Add padding to make buttons larger */
-                                }
-                                QLabel {
-                                    font-size: 25px;  /* Increase font size of the label text */
-                                }""")        
-        msgBox.setText(
-        "Check list before starting<br><br>"
-        "<ul>"
-        "<li>Make sure the webcam is connected with your laptop</li>"
-        "<li>Make sure that USB2 is connected to your laptop</li>"
-        "<li>Make sure that you have open air pressure</li>"
-        "</ul>"
-        )
+        # Create a custom dialog
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle('Confirm Start')
+        dialog.setMinimumWidth(600)
+        dialog.setMinimumHeight(400)
         
-        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
+        # Set a clean, modern style for the dialog
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #f5f5f5;
+            }
+            QCheckBox {
+                spacing: 15px;
+                padding: 10px;
+            }
+            QCheckBox::indicator {
+                width: 30px;
+                height: 30px;
+            }
+            QLabel {
+                color: #2c3e50;
+            }
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border-radius: 5px;
+                padding: 15px 30px;
+                font-size: 20px;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton#cancel {
+                background-color: #e74c3c;
+            }
+            QPushButton#cancel:hover {
+                background-color: #c0392b;
+            }
+        """)
+        
+        # Create layout for the dialog
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        
+        # Add a label for the title
+        title_label = QtWidgets.QLabel("Checklist before starting:")
+        title_font = QtGui.QFont()
+        title_font.setPointSize(25)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        layout.addWidget(title_label)
+        
+        # Create a widget for the checklist area with a light background
+        checklist_widget = QtWidgets.QWidget()
+        checklist_widget.setStyleSheet("background-color: white; border-radius: 10px;")
+        checklist_layout = QtWidgets.QVBoxLayout(checklist_widget)
+        checklist_layout.setContentsMargins(20, 20, 20, 20)
+        checklist_layout.setSpacing(15)
+        
+        # Create checkboxes for each item
+        checkbox_font = QtGui.QFont()
+        checkbox_font.setPointSize(16)
+        
+        checkboxes = [
+            QtWidgets.QCheckBox("Make sure the webcam is connected with your laptop"),
+            QtWidgets.QCheckBox("Make sure USB2 is connected to your laptop"),
+            QtWidgets.QCheckBox("Make sure you have open air pressure")
+        ]
+        
+        # Create icons for each checkbox (you can replace with actual icons if available)
+        icons = [
+            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_ComputerIcon),
+            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon),
+            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_DialogApplyButton)
+        ]
+        
+        # Add checkboxes to layout with icons
+        for i, checkbox in enumerate(checkboxes):
+            checkbox.setFont(checkbox_font)
+            checkbox.setIcon(icons[i])
+            checkbox.setIconSize(QtCore.QSize(30, 30))
+            checklist_layout.addWidget(checkbox)
+        
+        # Add the checklist widget to the main layout
+        layout.addWidget(checklist_widget)
+        
+        # Add stretch to push buttons to the bottom
+        layout.addStretch()
+        
+        # Create button layout
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.setSpacing(20)
+        
+        # Create Start and Cancel buttons
+        start_button = QtWidgets.QPushButton("START")
+        cancel_button = QtWidgets.QPushButton("CANCEL")
+        cancel_button.setObjectName("cancel")  # Set object name for specific styling
+        
+        # Add buttons to the button layout
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_button)
+        button_layout.addWidget(start_button)
+        
+        # Add button layout to main layout
+        layout.addLayout(button_layout)
+        
+        # Connect button signals
+        start_button.clicked.connect(lambda: self.handle_start(dialog, checkboxes))
+        cancel_button.clicked.connect(dialog.reject)
+        
+        # Show the dialog
+        dialog.exec_()
 
-        response = msgBox.exec_()
-
-        if response == QtWidgets.QMessageBox.Yes:
+    def handle_start(self, dialog, checkboxes):
+        # Check if all boxes are checked
+        all_checked = all(checkbox.isChecked() for checkbox in checkboxes)
+        
+        if not all_checked:
+            # Find which items are not checked
+            unchecked_items = [f"• {checkbox.text()}" for checkbox in checkboxes if not checkbox.isChecked()]
+            unchecked_text = "\n".join(unchecked_items)
+            
+            # Create warning dialog if not all items are checked
+            warning = QtWidgets.QMessageBox(dialog)
+            warning.setIcon(QtWidgets.QMessageBox.Warning)
+            warning.setWindowTitle("Incomplete Checklist")
+            warning.setText("Please complete all checks before starting.")
+            warning.setInformativeText("The following items are not checked:")
+            warning.setDetailedText(unchecked_text)
+            warning.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            
+            # Style the warning
+            warning.setStyleSheet("""
+                QMessageBox {
+                    background-color: #fff7e6;
+                    font-size: 16px;
+                }
+                QPushButton {
+                    background-color: #f39c12;
+                    color: white;
+                    padding: 10px 20px;
+                    font-size: 16px;
+                    border-radius: 5px;
+                }
+            """)
+            
+            warning.exec_()
+        else:
+            # All items checked, close the dialog and start
+            dialog.accept()
             self.startButton.setText("STOP")
-            # self.startButton.setStyleSheet("background-color: rgb(204, 0, 0);")
-            self.is_running = True            
-            self.start()  
-        else: 
-            return
+            self.is_running = True
+            self.start()
     
     def start(self):
         # Reset UI elements
         self.calNumber.setText('--')
         self.kpaNumber.setText('--')
+        self.paddleFlowTestResult.setText('--')
         self.lowVoltageTestResult.setText('--') 
         self.highVoltageTestResult.setText('--')
         
@@ -436,7 +561,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if extracted_text == "LOCKED" or extracted_text == "UNLOCKED":
                     command = 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
                     print(f"Starting {extracted_text} sequence")
-                    
+                    self.progressBar.setValue(50)
                     # Send command directly
                     self.arduino.send_command(command)
                     
@@ -573,7 +698,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 # Update the GUI with the result
                 if verification_success:
-                    self.paddleFlowTestResult.setText('OK')
+                    self.paddleFlowTestResult.setText('PASS')
                 else:
                     self.paddleFlowTestResult.setText('FAIL')
                 
@@ -581,7 +706,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.finish()
             else:
                 print("Error: Could not capture frame for LED verification")
-                self.highVoltageTestResult.setText('ERROR')
+                self.paddleFlowTestResult.setText('ERROR')
                 self.finish()
                 
         except Exception as e:
@@ -589,9 +714,46 @@ class MainWindow(QtWidgets.QMainWindow):
             traceback.print_exc()
             self.highVoltageTestResult.setText('ERROR')
             self.finish()
+        
+    def get_user_connection_preferences(self):
+        """Show dialog to get user's webcam and Arduino preferences"""
+        dialog = PortSelectionDialog(self)
+        
+        # Set initial default values
+        webcam_index = 2  # Default webcam index
+        arduino_port = SERIAL_PORT  # Default from config
+        arduino_baudrate = SERIAL_BAUDRATE  # Default from config
+        
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            # User clicked OK, get their selections
+            webcam_index, arduino_port, arduino_baudrate = dialog.get_selected_values()
             
+            # Show a confirmation message with the selected options
+            QtWidgets.QMessageBox.information(
+                self,
+                "Connection Settings",
+                f"Selected webcam: {webcam_index if webcam_index >= 0 else 'None'}\n"
+                f"Selected Arduino port: {arduino_port if arduino_port else 'None'}\n"
+                f"Selected baudrate: {arduino_baudrate}"
+            )
+        else:
+            # User clicked Cancel, show a message that we'll use defaults
+            QtWidgets.QMessageBox.information(
+                self,
+                "Using Defaults",
+                "Using default connections:\n"
+                f"Webcam: {webcam_index}\n"
+                f"Arduino port: {arduino_port}\n"
+                f"Baudrate: {arduino_baudrate}"
+            )
+            
+        return webcam_index, arduino_port, arduino_baudrate    
+    
+    
+    
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyle("Fusion")  # Use the cross-platform Fusion style
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

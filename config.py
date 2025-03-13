@@ -12,7 +12,7 @@ CAMERA_INDEX = 2  # Default camera index
 CAPTURE_PATH = "/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages"
 
 # Serial communication settings
-SERIAL_PORT = '/dev/ttyACM0'
+SERIAL_PORT = '/dev/ttyACM1'
 SERIAL_BAUDRATE = 9600
 SERIAL_TIMEOUT = 1
 
