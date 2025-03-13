@@ -9,7 +9,7 @@ class OCRProcessor:
             det_dn_thresh=0.3,
             det_db_box_thresh=0.3,
             det_db_unclip_ratio=1.8,
-            use_gpu = True,
+            use_gpu = False,
             det_model_dir = 'ch_PP-OCRv4_det_infer',
             rec_model_dir = 'ch_PP-OCRv4_rec_infer')                  
         
@@ -17,44 +17,56 @@ class OCRProcessor:
         import re
         
         result = self.reader.ocr(image_path, det=True, rec=True, cls=False)
-        detected_texts = [res[1][0] for res in result[0]]
-        print(f"Detected texts: {detected_texts}")
         
-        numbers_only = []
-        for text in detected_texts:
-            # Handle kPa cases (both with and without space)
-            if text.startswith('kPa'):
-                # Extract digits after 'kPa', removing any spaces
-                num_part = text[3:].strip()
-                if num_part.isdigit():
-                    numbers_only.append(int(num_part))
-                    continue
+        # Handle case where OCR returns None or empty result
+        if not result or len(result) == 0 or result[0] is None:
+            print(f"OCR failed to detect any text in the image: {image_path}")
+            return "ERROR"
             
-            # Handle 'Cal' vs 'Ca1' OCR mistake (with or without space)
-            if text.startswith('Ca1'):
-                # Remove the 'Ca1' prefix and any spaces
-                num_part = text[3:].strip()
-                if num_part.isdigit():
-                    numbers_only.append(int(num_part))
+        # Process OCR results
+        try:
+            detected_texts = [res[1][0] for res in result[0]]
+            print(f"Detected texts: {detected_texts}")
+            
+            numbers_only = []
+            for text in detected_texts:
+                # Handle kPa cases (both with and without space)
+                if text.startswith('kPa'):
+                    # Extract digits after 'kPa', removing any spaces
+                    num_part = text[3:].strip()
+                    if num_part.isdigit():
+                        numbers_only.append(int(num_part))
+                        continue
+                
+                # Handle 'Cal' vs 'Ca1' OCR mistake (with or without space)
+                if text.startswith('Ca1'):
+                    # Remove the 'Ca1' prefix and any spaces
+                    num_part = text[3:].strip()
+                    if num_part.isdigit():
+                        numbers_only.append(int(num_part))
+                        continue
+                        
+                # Handle normal digit-only cases
+                elif text.isdigit():
+                    numbers_only.append(int(text))
                     continue
                     
-            # Handle normal digit-only cases
-            elif text.isdigit():
-                numbers_only.append(int(text))
-                continue
-                
-            # Extract all numeric sequences as fallback
-            numeric_parts = re.findall(r'\d+', text)
-            for num_str in numeric_parts:
-                numbers_only.append(int(num_str))
-        
-        print(f"Extracted numbers: {numbers_only}")
-        
-        if len(numbers_only) == 2:
-            return numbers_only
+                # Extract all numeric sequences as fallback
+                numeric_parts = re.findall(r'\d+', text)
+                for num_str in numeric_parts:
+                    numbers_only.append(int(num_str))
             
-        # If the expected numbers weren't found, return "ERROR"
-        return "ERROR"
+            print(f"Extracted numbers: {numbers_only}")
+            
+            if len(numbers_only) == 2:
+                return numbers_only
+                
+            # If the expected numbers weren't found, return "ERROR"
+            return "ERROR"
+            
+        except Exception as e:
+            print(f"Error processing OCR results: {str(e)}")
+            return "ERROR"
     
     
     def extract_text(self, image_path):
@@ -81,7 +93,7 @@ class OCRProcessor:
         result = self.reader.ocr(image_path, det = True, rec = True, cls=False)
         print(result)
             # Check if OCR result is None or empty
-    # Check if OCR result is None, not a list, or empty
+        #Check if OCR result is None, not a list, or empty
         if not result or not isinstance(result, list) or len(result) == 0:
             print("No text detected or OCR failed.")
             return "UNKNOWN"

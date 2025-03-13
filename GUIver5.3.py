@@ -3,14 +3,17 @@ from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QObject, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QMovie
 from ocr import OCRProcessor
 from utils import SerialCommunicator
+from led_detector import LEDDetector  
+from webcam_thread import WebcamThread
+from datetime import datetime
 import serial
 import sys
-from datetime import datetime
 import time
 import cv2
 import traceback
 import queue
-from webcam_thread import WebcamThread
+
+from config import *
 
 # Custom stream class to redirect stdout to our GUI
 class OutputStreamRedirector(object):
@@ -35,85 +38,6 @@ class OutputStreamRedirector(object):
     
     def flush(self):
         pass
-
-# Custom Serial Communicator wrapper with command queue
-class SafeSerialCommunicator:
-    def __init__(self, serial_comm):
-        self.serial_comm = serial_comm
-        self.command_queue = queue.Queue()
-        self.interrupt_requested = False
-        self.is_processing = False
-        self.command_timer = QTimer()
-        self.command_timer.timeout.connect(self.process_command_queue)
-        self.command_timer.start(50)  # Process queue every 50ms
-    
-    def send_command(self, command):
-        """Queue a command to be sent to Arduino"""
-        if self.interrupt_requested:
-            print(f"Command '{command}' ignored due to interrupt")
-            return False
-            
-        self.command_queue.put(command)
-        return True
-    
-    def read_command(self):
-        """Read response from Arduino"""
-        if self.interrupt_requested:
-            return None
-            
-        try:
-            return self.serial_comm.read_command()
-        except Exception as e:
-            print(f"Error reading command: {e}")
-            return None
-    
-    def interrupt(self):
-        """Interrupt all operations and clear command queue"""
-        self.interrupt_requested = True
-        
-        # Clear the command queue
-        while not self.command_queue.empty():
-            try:
-                self.command_queue.get_nowait()
-            except queue.Empty:
-                break
-        
-        # Send emergency stop command directly
-        try:
-            self.serial_comm.send_command('STOP')
-            print("EMERGENCY STOP command sent directly to Arduino")
-            
-            # Clear any data in the serial buffer
-            time.sleep(0.1)  # Short delay to allow Arduino to process
-            while self.serial_comm.read_command():
-                pass  # Empty the buffer
-                
-        except Exception as e:
-            print(f"Error sending emergency stop: {e}")
-        
-        # Reset interrupt flag after emergency actions
-        self.interrupt_requested = False
-    
-    def process_command_queue(self):
-        """Process the command queue"""
-        if self.interrupt_requested or self.is_processing:
-            return
-            
-        try:
-            self.is_processing = True
-            
-            if not self.command_queue.empty():
-                command = self.command_queue.get_nowait()
-                try:
-                    self.serial_comm.send_command(command)
-                    print(f"Command sent to Arduino: {command}")
-                except Exception as e:
-                    print(f"Error sending command '{command}': {e}")
-        except Exception as e:
-            print(f"Error processing command queue: {e}")
-        finally:
-            self.is_processing = False
-
 
 class MainWindow(QtWidgets.QMainWindow):
     # Define a high-priority emergency stop signal
@@ -145,13 +69,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timers = []  # List to store all the timers
         
         try:
-            arduino_comm = SerialCommunicator(port='/dev/ttyACM0', baudrate=9600, timeout=1)
-            self.arduino = SafeSerialCommunicator(arduino_comm)
+            # Directly use SerialCommunicator from utils
+            self.arduino = SerialCommunicator(port=SERIAL_PORT, baudrate=SERIAL_BAUDRATE, timeout=1)
             print("✅ Arduino connected successfully")
         except Exception as e:
             print(f"Error initializing Arduino: {str(e)}")
             self.arduino = None
         
+        # Initialize the LED detector
+        self.led_detector = LEDDetector()
+        
+        # Add box coordinates for LED detection
+        self.led_box_coordinates = [
+            [56, 269, 37, 37], 
+            [60, 329, 36, 33],
+            [65, 383, 40, 34]
+        ]
         # Connect signals - use installEventFilter for the stop button
         self.startButton.installEventFilter(self)
         self.viewButton.clicked.connect(self.start_webcam)
@@ -233,9 +166,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.webcamFrame.setPixmap(qt_pixmap)
         self.webcamFrame.setAlignment(Qt.AlignCenter)
         self.draw_red_rectangle()
-    
-    
-    
+     
     def toggle_Go_Stop(self):
         print(f"Toggle button pressed, current state: {'Running' if self.is_running else 'Stopped'}")
         if not self.is_running:
@@ -262,9 +193,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 timer.stop()
         self.timers.clear()
         
-        # Interrupt Arduino operations and clear command queue
+        # Send STOP command to Arduino
         if self.arduino:
-            self.arduino.interrupt()
+            try:
+                self.arduino.send_command('STOP')
+                print("STOP command sent to Arduino")
+                
+                # Clear any data in the serial buffer
+                time.sleep(0.1)  # Short delay to allow Arduino to process
+                while self.arduino.read_command():
+                    pass  # Empty the buffer
+            except Exception as e:
+                print(f"Error sending emergency stop: {e}")
         
         # Reset UI elements
         self.startButton.setText("GO")
@@ -290,14 +230,8 @@ class MainWindow(QtWidgets.QMainWindow):
             frame = self.webcam_thread.get_latest_frame()
             
             if frame is not None:
-                # Rectangle shape
-                rect_width = 400 
-                rect_height = 120 
-                rect_x = 120
-                rect_y = 265
-                
                 # Crop the frame to the size of the red rectangle
-                cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+                cropped_frame = frame[OCR_RECT_Y:OCR_RECT_Y + OCR_RECT_HEIGHT, OCR_RECT_X:OCR_RECT_X + OCR_RECT_WIDTH]
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
                 
@@ -316,7 +250,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     # Only show message box if still running
                     if self.is_running:
                         QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error extracting data")
-                        self.confirm_finish()
+                        self.finish()
                 else: # Successfully extract text 
                     print(f"OCR Result: {result_number}")
 
@@ -329,7 +263,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     if kPa == 0:
                         self.lowVoltageTestResult.setText('OK')
                         self.arduino.send_command('PRESS_P')
-                        self.finish()
+                        self.finish() #Comment out to continue to test the paddle flow 
                     else:
                         self.lowVoltageTestResult.setText('ERROR')
             else:
@@ -402,9 +336,9 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Arduino not connected")
             return
         
-        print("Starting sequence - sending PUMP_SEQ command")
+        print("Starting sequence")
         
-        # Send the PUMP_SEQ command via the safe communicator
+        # Send the PUMP_SEQ command directly
         try:
             self.arduino.send_command('PUMP_SEQ')
             
@@ -454,9 +388,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif response == "SEQUENCE_COMPLETE":
                     print("SEQUENCE_COMPLETE")
                     self.logMessageLine.setText("SEQUENCE_COMPLETE")
-                    
-                    # Take snapshot to capture the results
                     QTimer.singleShot(500, self.snapshot)  # Small delay to let everything settle
+                elif response == "P_PRESSED_TWICE":
+                    print("P_PRESSED_TWICE")
+                    self.logMessageLine.setText("P_PRESSED_TWICE")   
+                    self.arduino.send_command('PUSH_PADDLE')    
+                    self.logMessageLine.setText("PUSH_PADDLE")             
+                elif response == "PADDLE_PUSHED":
+                    print("PADDLE_PUSHED")
+                    self.logMessageLine.setText("PADDLE_PUSHED")
+                    QTimer.singleShot(1000, self.capture_led_state)
                 
         except Exception as e:
             print(f"Error reading from Arduino: {str(e)}")
@@ -480,11 +421,7 @@ class MainWindow(QtWidgets.QMainWindow):
             frame = self.webcam_thread.get_latest_frame()
             
             if frame is not None:
-                rect_width = 400 
-                rect_height = 120 
-                rect_x = 120
-                rect_y = 265
-                cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+                cropped_frame = frame[OCR_RECT_Y:OCR_RECT_Y + OCR_RECT_HEIGHT, OCR_RECT_X:OCR_RECT_X + OCR_RECT_WIDTH]
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/LOCK2UNLOCK{timestamp}.jpg"
                 cv2.imwrite(image_filename, cropped_frame)
@@ -500,7 +437,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     command = 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
                     print(f"Starting {extracted_text} sequence")
                     
-                    # Send command via the safe communicator
+                    # Send command directly
                     self.arduino.send_command(command)
                     
                 else:
@@ -516,6 +453,11 @@ class MainWindow(QtWidgets.QMainWindow):
             print(f"Error capturing lock status: {str(e)}")
             traceback.print_exc()
             self.confirm_finish()
+    
+    def retry_capture_lock_status(self):
+        """Retry capturing lock status after a delay"""
+        if self.is_running:
+            self.capture_lock_status()
         
     def finish(self):
         # Only reset if we're still running
@@ -554,20 +496,11 @@ class MainWindow(QtWidgets.QMainWindow):
         pen.setColor(Qt.red)       # Set the border color to red
         pen.setWidth(3)            # Set the border width to 3 pixels
         painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)  # Ensure no fill for the rectangle
-
-        # Calculate the size and position for the hollow rectangle
-        rect_width = 400 
-        rect_height = 120 
-        rect_x = 120
-        rect_y = 265
-        
+        painter.setBrush(Qt.NoBrush)  # Ensure no fill for the rectangle       
         # Draw the hollow rectangle
-        painter.drawRect(rect_x, rect_y, rect_width, rect_height)
-        
+        painter.drawRect(OCR_RECT_X, OCR_RECT_Y, OCR_RECT_WIDTH, OCR_RECT_HEIGHT)      
         # End painting
         painter.end()
-        
         # Update the label with the modified pixmap
         self.webcamFrame.setPixmap(pixmap)
 
@@ -577,30 +510,86 @@ class MainWindow(QtWidgets.QMainWindow):
             return
             
         msgBox = QtWidgets.QMessageBox()
-        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        msgBox.setIcon(QtWidgets.QMessageBox.Information)
         font = QtGui.QFont()
         font.setPointSize(20)  # Set a larger font size
-        msgBox.setFont(font)
-        msgBox.setStyleSheet(""" QMessageBox {
-                                    min-width: 500px;  /* Set the minimum width */
-                                    min-height: 300px;  /* Set the minimum height */
-                                }
-                                QPushButton {
-                                    font-size: 18px;  /* Increase font size of buttons */
-                                    padding: 12px;     /* Add padding to make buttons larger */
-                                }
-                                QLabel {
-                                    font-size: 25px;  /* Increase font size of the label text */
-                                }""")
         msgBox.setWindowTitle('Confirm Finished')
-        msgBox.setText('Finished. Click YES')
+        msgBox.setText('Finished')
         msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes)
         msgBox.setDefaultButton(QtWidgets.QMessageBox.Yes)
         response = msgBox.exec_()
         if response == QtWidgets.QMessageBox.Yes:
             self.finish()
 
+    def error(self):
+        # Check if we're still running before showing dialog
+        if not self.is_running:
+            return
+            
+        msgBox = QtWidgets.QMessageBox()
+        msgBox.setIcon(QtWidgets.QMessageBox.Critical)
+        font = QtGui.QFont()
+        font.setPointSize(20)  # Set a larger font size
+        msgBox.setWindowTitle('Error')
+        msgBox.setText('Error occured! Please try again')
+        self.finish()
 
+    def capture_led_state(self):
+        """Capture the current state of the LEDs for verification"""
+        if not self.is_running:
+            return
+            
+        try:
+            print("Capturing LED states...")
+            
+            # Get the latest frame from the webcam
+            frame = self.webcam_thread.get_latest_frame()
+            
+            if frame is not None:
+                # Save a copy of the frame for reference
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_{timestamp}.jpg"
+                cv2.imwrite(image_filename, frame)
+                
+                # Process the frame to detect LEDs
+                results, display_img = self.led_detector.detect_leds(frame, self.led_box_coordinates)
+                
+                # Save the annotated image
+                cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_{timestamp}.jpg", 
+                           cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
+                
+                # Verify if exactly 2 green LEDs are lit
+                verification_success, message = self.led_detector.check_green_leds(results)
+                
+                # Log detailed results
+                print("\nLED Detection Results:")
+                for result in results:
+                    print(f"Box {result['box_id']} ({result['position']}): LED is {'ON' if result['lit'] else 'OFF'}")
+                    if result['lit']:
+                        print(f"  Color: {result['color']}")
+                        print(f"  Brightness: {result['brightness']:.2f}")
+                
+                print(message)
+                
+                # Update the GUI with the result
+                if verification_success:
+                    self.paddleFlowTestResult.setText('OK')
+                else:
+                    self.paddleFlowTestResult.setText('FAIL')
+                
+                # Now we can finish the test
+                self.finish()
+            else:
+                print("Error: Could not capture frame for LED verification")
+                self.highVoltageTestResult.setText('ERROR')
+                self.finish()
+                
+        except Exception as e:
+            print(f"Error in LED verification: {str(e)}")
+            traceback.print_exc()
+            self.highVoltageTestResult.setText('ERROR')
+            self.finish()
+            
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()

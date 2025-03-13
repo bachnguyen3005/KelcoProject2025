@@ -2,13 +2,54 @@ from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QObject, QEventLoop
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QMovie
 from ocr import OCRProcessor
-from utils import SerialCommunicator
+from utils_thread import SerialCommunicator
 import serial
 import sys
 from datetime import datetime
 import time
 import cv2
 
+class CameraWorker(QThread):
+    """Worker thread for continuous camera monitoring and image capture on request"""
+    image_captured_signal = pyqtSignal(str)
+    
+    def __init__(self, cap, capture_path, rect_dimensions):
+        super().__init__()
+        self.cap = cap
+        self.capture_path = capture_path
+        self.rect_dimensions = rect_dimensions  # (x, y, width, height)
+        self.running = True
+        self.capture_requested = False
+        self.capture_mode = None  # To determine what type of capture (lock_status or numbers)
+        
+    def run(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if ret and self.capture_requested:
+                x, y, w, h = self.rect_dimensions
+                cropped_frame = frame[y:y+h, x:x+w]
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                if self.capture_mode == 'lock_status':
+                    image_filename = f"{self.capture_path}/LOCK2UNLOCK{timestamp}.jpg"
+                else:  # Default or 'numbers' mode
+                    image_filename = f"{self.capture_path}/processed_snapshot_simple{timestamp}.jpg"
+                    
+                cv2.imwrite(image_filename, cropped_frame)
+                self.capture_requested = False
+                self.image_captured_signal.emit(image_filename)
+            
+            # Small sleep to prevent high CPU usage
+            time.sleep(0.05)
+    
+    def request_capture(self, mode='numbers'):
+        """Request an image capture with the specified mode"""
+        self.capture_mode = mode
+        self.capture_requested = True
+        
+    def stop(self):
+        """Stop the camera worker thread"""
+        self.running = False
 
 # Custom stream class to redirect stdout to our GUI
 class OutputStreamRedirector(object):
@@ -34,49 +75,111 @@ class OutputStreamRedirector(object):
     def flush(self):
         pass
 
-
 # Worker thread for Arduino interactions
 class ArduinoWorker(QThread):
     response_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
     
-    def __init__(self, arduino, command):
+    def __init__(self, serial_communicator, sequence_type):
         super().__init__()
-        self.arduino = arduino
-        self.command = command
+        self.serial_communicator = serial_communicator
+        self.sequence_type = sequence_type
         self.running = True
+        self.mutex = QtCore.QMutex()
         
+        # Connect to the serial communicator's signals
+        self.serial_communicator.response_signal.connect(self.handle_response)
+        
+        # Track sequence state
+        self.current_step = 0
+        self.sequence_steps = []
+        self.waiting_for_response = False
+        self.expected_response = None
+    
     def run(self):
+        """Execute the sequence"""
         try:
-            # Send the command to Arduino
-            self.arduino.send_command(self.command)
+            # Define the sequence steps based on sequence_type
+            self.define_sequence()
             
-            # Monitor for responses
-            while self.running:
-                response = self.arduino.read_command()
-                if response:
-                    self.response_signal.emit(response)
-                    
-                    # If we get SEQUENCE_COMPLETE, we're done
-                    if response == "SEQUENCE_COMPLETE":
-                        break
-                        
-                # Small sleep to prevent high CPU usage
-                time.sleep(0.05)
+            # Start the sequence
+            self.execute_next_step()
+            
+            # Main sequence management loop
+            while self.running and self.current_step < len(self.sequence_steps):
+                # Check if we're waiting for a response
+                if not self.waiting_for_response:
+                    # Execute the next step if we're not waiting
+                    self.execute_next_step()
                 
-            self.finished_signal.emit()
+                # Prevent high CPU usage
+                QtCore.QThread.msleep(50)
             
+            if self.running:  # Only if we weren't stopped
+                self.finished_signal.emit()
+                
         except Exception as e:
-            print(f"Error in Arduino worker: {str(e)}")
+            print(f"Error in sequence worker: {str(e)}")
             self.finished_signal.emit()
     
+    def define_sequence(self):
+        """Define the sequence steps based on sequence_type"""
+        if self.sequence_type == 'PUMP_SEQ':
+            self.sequence_steps = [
+                {'command': 'PUMP_SEQ', 'wait_for': 'DONE'},
+                # No more steps - after DONE response, camera capture happens
+            ]
+        elif self.sequence_type == 'LOCKED_SEQUENCE':
+            self.sequence_steps = [
+                {'command': 'LOCKED_SEQUENCE', 'wait_for': 'SEQUENCE_COMPLETE'}
+            ]
+        elif self.sequence_type == 'UNLOCKED_SEQUENCE':
+            self.sequence_steps = [
+                {'command': 'UNLOCKED_SEQUENCE', 'wait_for': 'SEQUENCE_COMPLETE'}
+            ]
+        # Add other sequences as needed
+    
+    def execute_next_step(self):
+        """Execute the next step in the sequence"""
+        if self.current_step >= len(self.sequence_steps):
+            return
+            
+        step = self.sequence_steps[self.current_step]
+        
+        # Send the command to the serial communicator
+        self.serial_communicator.send_command(step['command'])
+        
+        # If we need to wait for a response, set the waiting flag
+        if 'wait_for' in step:
+            self.waiting_for_response = True
+            self.expected_response = step['wait_for']
+        else:
+            # If no response needed, move to next step
+            self.current_step += 1
+    
+    def handle_response(self, response):
+        """Handle responses from the serial communicator"""
+        # First forward the response to any listeners
+        self.response_signal.emit(response)
+        
+        # Check if this is the response we're waiting for
+        if self.waiting_for_response and response == self.expected_response:
+            self.waiting_for_response = False
+            self.current_step += 1
+            
+            # Special case: when we get SEQUENCE_COMPLETE, we're done
+            if response == 'SEQUENCE_COMPLETE':
+                self.running = False
+                self.finished_signal.emit()
+    
     def stop(self):
+        """Stop the sequence and send stop command"""
+        self.mutex.lock()
         self.running = False
-        # Send stop command to Arduino
-        try:
-            self.arduino.send_command('STOP')
-        except:
-            pass
+        self.mutex.unlock()
+        
+        # Send stop command via the serial communicator
+        self.serial_communicator.emergency_stop()
 
 
 # Worker thread for OCR processing
@@ -121,12 +224,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_running = False  # Track the current state (GO/STOP)
         self.timers = []  # List to store all the timers
         self.workers = []  # List to track all worker threads
+        self.camera_worker = None  # Will be initialized when webcam starts
+    
         
         try:
-            self.arduino = SerialCommunicator(port='/dev/ttyACM0', baudrate=9600, timeout=1)
+            self.serial_communicator = SerialCommunicator(port='/dev/ttyACM0', baudrate=9600, timeout=1)
+            self.serial_communicator.error_signal.connect(self.handle_arduino_error)
+            self.serial_communicator.connected_signal.connect(self.handle_arduino_connection)
+            self.serial_communicator.start()
         except Exception as e:
-            print(f"Error initializing Arduino: {str(e)}")
-            self.arduino = None
+            print(f"Error initializing serial communicator: {str(e)}")
+            self.serial_communicator = None
         
         # Connect signals
         self.startButton.clicked.connect(self.toggle_Go_Stop)
@@ -152,19 +260,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.modelList.addItems(models)
         
     def start_webcam(self):
-        if not self.is_webcam_open_first_time:            
-            self.cap = cv2.VideoCapture(2)
-            time.sleep(1)
-            self.is_webcam_open_first_time = True
-        else:
-            self.cap = cv2.VideoCapture(0)
-            
+        self.cap = cv2.VideoCapture(2)   
         if self.cap.isOpened():
             self.is_webcam_open = True
-            self.timer = QTimer() # Set up timer for updating the frame
+            self.timer = QTimer()  # Set up timer for updating the frame
             self.timer.timeout.connect(self.update_frame)
             self.timer.start(30)  # Update frame every 30 ms
             self.timers.append(self.timer)  # Add to the timer list for cleanup
+            
+            # Initialize and start the camera worker
+            capture_path = "/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages"
+            rect_dimensions = (130, 255, 400, 120)  # x, y, width, height
+            self.camera_worker = CameraWorker(self.cap, capture_path, rect_dimensions)
+            self.camera_worker.image_captured_signal.connect(self.process_captured_image)
+            self.workers.append(self.camera_worker)
+            self.camera_worker.start()
+            
             print("Webcam started")
         else: 
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Could not open webcam. Click View button again.")
@@ -177,6 +288,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     timer.stop()
             self.timers.clear()
             
+            # Stop camera worker if it exists
+            if self.camera_worker and self.camera_worker.isRunning():
+                self.camera_worker.stop()
+                self.camera_worker.wait()  # Wait for thread to finish
+            
             if hasattr(self, 'cap'):
                 self.cap.release()
             
@@ -185,30 +301,54 @@ class MainWindow(QtWidgets.QMainWindow):
             print("Webcam stopped")
     
     def toggle_Go_Stop(self):
+        """Handle the GO/STOP button click with immediate visual feedback"""
         print(f"Toggle button pressed, current state: {'Running' if self.is_running else 'Stopped'}")
-        if not self.is_running:
-            # Start the process
-            self.confirm_start()
-        else:
-            # Stop everything immediately
+        
+        # If we're currently running, prioritize the stop operation
+        if self.is_running:
+            # Provide immediate visual feedback
+            self.startButton.setText("Stopping...")
+            self.startButton.setStyleSheet("background-color: orange;")
+            
+            # Process events to update the UI immediately
+            QtWidgets.QApplication.instance().processEvents()
+            
+            # Perform the emergency stop
             self.emergency_stop()
-    
+        else:
+            # Start process with confirmation dialog
+            self.confirm_start()
+        
     def emergency_stop(self):
-        """Immediately stop all operations"""
+        """Immediately stop all operations without blocking the UI"""
         print("EMERGENCY STOP activated")
         
         # First, set flags to indicate we're stopping
         self.is_running = False
         
-        # Stop all worker threads
-        for worker in self.workers:
+        # Visual feedback immediately
+        self.startButton.setText("GO")
+        # self.startButton.setStyleSheet("background-color: rgb(138, 226, 52);")
+        
+        # Process events to update UI immediately
+        QtWidgets.QApplication.instance().processEvents()
+        
+        # Send emergency stop to Arduino FIRST - most critical action
+        if self.serial_communicator and self.serial_communicator.isRunning():
+            try:
+                self.serial_communicator.emergency_stop()
+                print("Emergency stop command sent to Arduino")
+            except Exception as e:
+                print(f"Error sending stop command: {str(e)}")
+        
+        # Stop worker threads in background
+        for worker in self.workers[:]:
             if worker.isRunning():
                 if isinstance(worker, ArduinoWorker):
-                    worker.stop()  # Special method for Arduino workers
-                worker.quit()
-                worker.wait(500)  # Wait up to 500ms for thread to finish
-        
-        self.workers.clear()
+                    worker.stop()  # This will also trigger emergency stop on serial
+                elif isinstance(worker, CameraWorker):
+                    worker.stop()
+                # Don't wait for threads to finish here - just set their stop flags
         
         # Stop all timers
         for timer in self.timers:
@@ -216,59 +356,41 @@ class MainWindow(QtWidgets.QMainWindow):
                 timer.stop()
         self.timers.clear()
         
-        # Send stop command directly, just to be sure
-        if self.arduino:
-            try:
-                self.arduino.send_command('STOP')
-                print("Stop command sent to Arduino")
-            except Exception as e:
-                print(f"Error sending stop command: {str(e)}")
-        
-        # Reset UI elements
-        self.startButton.setText("GO")
-        
         # Cancel any ongoing message boxes
         for widget in QtWidgets.QApplication.topLevelWidgets():
             if isinstance(widget, QtWidgets.QMessageBox):
                 widget.close()
         
-        # Process events to ensure UI updates
-        QApplication = QtWidgets.QApplication.instance()
-        QApplication.processEvents()
+        # Schedule cleanup to happen in the background
+        QtCore.QTimer.singleShot(500, self._cleanup_after_stop)
+        
+        # Process events again for immediate UI update
+        QtWidgets.QApplication.instance().processEvents()
         
         print("System stopped")
+
+    def _cleanup_after_stop(self):
+        """Clean up resources after emergency stop"""
+        # Wait for worker threads to finish properly
+        for worker in self.workers[:]:
+            if worker.isRunning():
+                worker.wait(100)  # Short timeout to avoid blocking
+            self.workers.remove(worker)
+        
+        # Final UI updates
+        self.logMessageLine.setText("System stopped")
     
     def snapshot(self):
         if not self.is_running:
             print("System not running, snapshot cancelled")
             return
-            
-        ret, frame = self.cap.read()
-        if ret:
-            #Rectangle shape
-            rect_width = 400 
-            rect_height = 120 
-            rect_x = 120
-            rect_y = 265
-            # Crop the frame to the size of the red rectangle
-            cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
-            # Save the processed image for OCRvoid loop(){  
-            cv2.imwrite(image_filename, cropped_frame)
-            
-            # Check if we're still running before proceeding with OCR
-            if not self.is_running:
-                return
-                
-            # Create and start OCR worker thread
-            self.ocr_worker = OCRWorker(self.ocr_processor, image_filename, 'numbers')
-            self.ocr_worker.result_signal.connect(self.handle_ocr_result)
-            self.workers.append(self.ocr_worker)
-            self.ocr_worker.start()
-            
-            # Update log message
-            print("Processing OCR...")
+        
+        # Request camera to capture numbers
+        print("Requesting numbers capture...")
+        if self.camera_worker and self.camera_worker.isRunning():
+            self.camera_worker.request_capture(mode='numbers')
+        else:
+            print("Camera worker not running, cannot capture image")
     
     def handle_ocr_result(self, result_number):
         # Check if we're still running
@@ -281,7 +403,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Only show message box if still running
             if self.is_running:
                 QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error")
-                self.confirm_finish()
+                # self.confirm_finish()
         else: # Successfully extract text 
             print(f"OCR Result: {result_number}")
 
@@ -293,14 +415,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if kPa == 0:
                 self.lowVoltageTestResult.setText('OK')
-                self.confirm_finish()
+                # self.confirm_finish()
                 #send to arduino 'confirm finish low voltage'
             else:
                 self.lowVoltageTestResult.setText('ERROR')
-                self.confirm_finish()
+                # self.confirm_finish()
                 #send to arduino 'confirm finish low voltage'
                 
-    
     def initialize_ocr(self): 
         self.ocr_processor = OCRProcessor()
         print("OCR system initialized")
@@ -339,7 +460,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if response == QtWidgets.QMessageBox.Yes:
             self.startButton.setText("STOP")
-            self.startButton.setStyleSheet("background-color: rgb(204, 0, 0);")
+            # self.startButton.setStyleSheet("background-color: rgb(204, 0, 0);")
             self.is_running = True            
             self.start()  
         else: 
@@ -356,14 +477,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "ERROR")
             return
             
-        if not self.arduino:
-            QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Arduino not connected")
+        if not self.serial_communicator or not self.serial_communicator.isRunning():
+            QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Serial communicator not connected")
             return
         
-        print("Starting sequence - sending PUMP_SEQ command")
+        print("Starting sequence - creating sequence worker for PUMP_SEQ")
         
-        # Start Arduino worker in a thread
-        self.arduino_worker = ArduinoWorker(self.arduino, 'PUMP_SEQ')
+        # Create and start a sequence worker
+        self.arduino_worker = ArduinoWorker(self.serial_communicator, 'PUMP_SEQ')
         self.arduino_worker.response_signal.connect(self.handle_arduino_response)
         self.arduino_worker.finished_signal.connect(self.on_arduino_finished)
         self.workers.append(self.arduino_worker)
@@ -378,8 +499,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
             
         if response == "DONE":
-            # Take snapshot of lock status
-            self.capture_lock_status()
+            # Request camera to capture lock status
+            print("Requesting lock status capture...")
+            if self.camera_worker and self.camera_worker.isRunning():
+                self.camera_worker.request_capture(mode='lock_status')
+            else:
+                print("Camera worker not running, cannot capture image")
     
     def on_arduino_finished(self):
         print("Arduino sequence finished")
@@ -387,30 +512,6 @@ class MainWindow(QtWidgets.QMainWindow):
         for worker in self.workers[:]:
             if not worker.isRunning():
                 self.workers.remove(worker)
-    
-    def capture_lock_status(self):
-        # Check if we're still running
-        if not self.is_running:
-            return
-            
-        ret, frame = self.cap.read()
-        if ret:
-            rect_width = 400 
-            rect_height = 120 
-            rect_x = 120
-            rect_y = 265
-            cropped_frame = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/LOCK2UNLOCK{timestamp}.jpg"
-            cv2.imwrite(image_filename, cropped_frame) 
-            
-            # Process lock status in a thread
-            self.lock_ocr_worker = OCRWorker(self.ocr_processor, image_filename, 'lock_status')
-            self.lock_ocr_worker.result_signal.connect(self.handle_lock_status)
-            self.workers.append(self.lock_ocr_worker)
-            self.lock_ocr_worker.start()
-            
-            print("Determining lock status...")
     
     def handle_lock_status(self, extracted_text):
         # Check if we're still running
@@ -422,7 +523,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if extracted_text == "LOCKED" or extracted_text == "UNLOCKED":
             # Start the appropriate sequence in a thread
             self.sequence_worker = ArduinoWorker(
-                self.arduino, 
+                self.serial_communicator, 
                 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
             )
             self.sequence_worker.response_signal.connect(self.handle_sequence_response)
@@ -436,7 +537,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.is_running:
                 QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", 
                                           "Could not recognize lock status. Please try again.")
-                self.confirm_finish()
+                # self.confirm_finish()
     
     def handle_sequence_response(self, response):
         # Log all responses from the sequence
@@ -493,9 +594,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Calculate the size and position for the hollow rectangle
         rect_width = 400 
-        rect_height = 120 
+        rect_height = 130 
         rect_x = 120
-        rect_y = 265
+        rect_y = 255
         
         # Draw the hollow rectangle
         painter.drawRect(rect_x, rect_y, rect_width, rect_height)
@@ -535,8 +636,49 @@ class MainWindow(QtWidgets.QMainWindow):
         if response == QtWidgets.QMessageBox.Yes:
             self.finish()
 
+    def process_captured_image(self, image_filename):
+        """Process the image captured by the camera worker"""
+        # Check if we're still running
+        if not self.is_running:
+            return
+        
+        # Determine which type of processing to do based on the filename
+        if "LOCK2UNLOCK" in image_filename:
+            print("Processing lock status image...")
+            # Process lock status
+            self.lock_ocr_worker = OCRWorker(self.ocr_processor, image_filename, 'lock_status')
+            self.lock_ocr_worker.result_signal.connect(self.handle_lock_status)
+            self.workers.append(self.lock_ocr_worker)
+            self.lock_ocr_worker.start()
+        else:
+            print("Processing OCR for numbers...")
+            # Process numbers
+            self.ocr_worker = OCRWorker(self.ocr_processor, image_filename, 'numbers')
+            self.ocr_worker.result_signal.connect(self.handle_ocr_result)
+            self.workers.append(self.ocr_worker)
+            self.ocr_worker.start()
 
-# No longer need the ArduinoStateMachine class as its functionality is now handled by threads
+    def handle_arduino_error(self, error_message):
+        """Handle Arduino communication errors"""
+        print(f"Arduino error: {error_message}")
+        # Show error message or update UI if needed
+        if self.is_running:
+            # If error is serious, may want to stop operations
+            QtWidgets.QMessageBox.warning(self.centralwidget, "Arduino Error", error_message)
+
+    def handle_arduino_connection(self, connected):
+        """Handle Arduino connection status changes"""
+        if connected:
+            print("Arduino connected successfully")
+        else:
+            print("Arduino disconnected")
+            if self.is_running:
+                # If we lose connection during operation, stop everything
+                self.emergency_stop()
+                QtWidgets.QMessageBox.warning(self.centralwidget, "Connection Lost", 
+                                        "Arduino connection lost. Operations stopped.")
+
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
