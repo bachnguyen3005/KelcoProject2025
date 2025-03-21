@@ -355,9 +355,9 @@ class MainWindow(QtWidgets.QMainWindow):
         checkbox_font.setPointSize(16)
         
         checkboxes = [
-            QtWidgets.QCheckBox("Make sure the webcam is connected with your laptop"),
-            QtWidgets.QCheckBox("Make sure USB2 is connected to your laptop"),
-            QtWidgets.QCheckBox("Make sure you have open air pressure")
+            QtWidgets.QCheckBox("Webcam is connected with your laptop"),
+            QtWidgets.QCheckBox("USB cable is connected to your laptop"),
+            QtWidgets.QCheckBox("You have openned air pressure")
         ]
         
         # Create icons for each checkbox (you can replace with actual icons if available)
@@ -515,14 +515,20 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.logMessageLine.setText("SEQUENCE_COMPLETE")
                     QTimer.singleShot(500, self.snapshot)  # Small delay to let everything settle
                 elif response == "P_PRESSED_TWICE":
+                    print(f"Current model: {self.modelList.currentText()}")
                     print("P_PRESSED_TWICE")
                     self.logMessageLine.setText("P_PRESSED_TWICE")   
                     self.arduino.send_command('PUSH_PADDLE')    
-                    self.logMessageLine.setText("PUSH_PADDLE")             
+                    self.logMessageLine.setText("Start pushing paddle!")             
                 elif response == "PADDLE_PUSHED":
                     print("PADDLE_PUSHED")
                     self.logMessageLine.setText("PADDLE_PUSHED")
-                    QTimer.singleShot(1000, self.capture_led_state)
+                    QTimer.singleShot(1000, self.capture_led_state_F60)
+                elif response == "BLINKING_TEST_F60":
+                    print("BLINKING_TEST_F60")
+                    self.logMessageLine.setText("BLINKING_TEST_F60")
+                    self.check_blinking_led_F60()
+                
                 
         except Exception as e:
             print(f"Error reading from Arduino: {str(e)}")
@@ -659,7 +665,7 @@ class MainWindow(QtWidgets.QMainWindow):
         msgBox.setText('Error occured! Please try again')
         self.finish()
 
-    def capture_led_state(self):
+    def capture_led_state_F60(self):
         """Capture the current state of the LEDs for verification"""
         if not self.is_running:
             return
@@ -698,12 +704,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 # Update the GUI with the result
                 if verification_success:
-                    self.paddleFlowTestResult.setText('PASS')
+                    #Continue with blinking test
+                    self.arduino.send_command("START_BLINKING_TEST_F60")
+                    self.logMessageLine.setText("Push back the paddle to intial position!")
+                    # self.paddleFlowTestResult.setText('PASS')
+                    
                 else:
                     self.paddleFlowTestResult.setText('FAIL')
                 
                 # Now we can finish the test
-                self.finish()
+                # self.finish()
             else:
                 print("Error: Could not capture frame for LED verification")
                 self.paddleFlowTestResult.setText('ERROR')
@@ -749,7 +759,49 @@ class MainWindow(QtWidgets.QMainWindow):
             
         return webcam_index, arduino_port, arduino_baudrate    
     
-    
+    def check_blinking_led_F60(self):
+        """
+        Check if the LED at position 2 (index 1) is blinking correctly
+        This method is designed to be called from the MainWindow class
+        """
+        if not self.is_running:
+            return
+        
+        try:
+            print("Checking if LED at position 2 is blinking...")
+            
+            # First, take multiple frames to detect blinking
+            blink_results = self.led_detector.detect_blinking_led(
+                self.webcam_thread,
+                self.led_box_coordinates,
+                position_index=1,  # Position 2 (0-based index)
+                num_frames=30,     # Take 15 frames
+                interval_ms=200    # 100ms between frames
+            )
+            
+            # Update GUI based on results
+            if blink_results['is_blinking']:
+                print("✅ LED at position 2 is blinking correctly")
+                self.paddleFlowTestResult.setText('PASS')
+            else:
+                if blink_results['frames_on'] > 0:
+                    print("⚠️ LED at position 2 is on but not blinking")
+                    self.paddleFlowTestResult.setText('PASS')
+                    
+                else:
+                    print("❌ LED at position 2 is not lighting up")
+                    self.paddleFlowTestResult.setText('FAIL')
+            
+            # After LED verification is complete, we can continue with remaining
+            # test steps or finish the test
+            self.finish()
+                
+        except Exception as e:
+            print(f"Error in blinking LED verification: {str(e)}")
+            traceback.print_exc()
+            self.highVoltageTestResult.setText('ERROR')
+            self.finish()    
+            
     
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

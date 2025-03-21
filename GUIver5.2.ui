@@ -54,12 +54,12 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
-  background-color: #4a6fff;
+  background-color: #1877F2;
   color: white;
 }
 
 QPushButton {
-  background-color: #4a6fff;
+  background-color: #1877F2;
   color: white;
   border: none;
   padding: 10px 15px;
@@ -106,7 +106,7 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-  background-color: #4a6fff;
+  background-color: #1877F2;
   border-radius: 4px;
 }
 </string>

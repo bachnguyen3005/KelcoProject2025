@@ -123,3 +123,132 @@ class LEDDetector:
         else:
             message = f"FAILED: Expected 2 green LEDs, but detected {green_leds_count}."
             return False, message
+
+    def detect_blinking_led(self, webcam_thread, led_box_coordinates, position_index=1, num_frames=10, interval_ms=200):
+        """
+        Detect if an LED is blinking by capturing multiple frames and analyzing them.
+        
+        Args:
+            webcam_thread: WebcamThread object that provides frames
+            led_box_coordinates: List of boxes defined as [x, y, width, height]
+            position_index: Index of the LED position to check (0-based)
+            num_frames: Number of frames to capture for blink detection
+            interval_ms: Time interval between frame captures in milliseconds
+            
+        Returns:
+            dict: Detection results with the following keys:
+                - is_blinking: True if LED is detected as blinking
+                - frames_on: Number of frames where LED was detected as ON
+                - frames_off: Number of frames where LED was detected as OFF
+                - message: Detailed result message
+                - states: List of LED states across frames (True for ON, False for OFF)
+        """
+        import time
+        from datetime import datetime
+        import cv2
+        import os
+        
+        # Input validation
+        if position_index >= len(led_box_coordinates):
+            return {
+                'is_blinking': False,
+                'frames_on': 0,
+                'frames_off': 0,
+                'message': f"Error: Position index {position_index} is out of range",
+                'states': []
+            }
+        
+        # Initialize result tracking
+        states = []
+        frames = []
+        timestamps = []
+        
+        print(f"Starting blink detection for LED at position {position_index+1}...")
+        print(f"Capturing {num_frames} frames with {interval_ms}ms interval")
+        
+        # Create a directory for saving frames if it doesn't exist
+        save_dir = "/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/blink_detection"
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Get timestamp for this session
+        session_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Capture multiple frames with time intervals
+        for i in range(num_frames):
+            # Get current timestamp
+            current_time = datetime.now()
+            timestamps.append(current_time)
+            
+            # Get the latest frame from the webcam
+            frame = webcam_thread.get_latest_frame()
+            
+            if frame is None:
+                print(f"Error capturing frame {i+1}")
+                continue
+            
+            # Save the frame
+            frame_filename = f"{save_dir}/blink_frame_{session_timestamp}_{i+1}.jpg"
+            cv2.imwrite(frame_filename, frame)
+            
+            # Detect LEDs in the frame
+            results, annotated_frame = self.detect_leds(frame, led_box_coordinates)
+            
+            # Save the annotated frame
+            annotated_filename = f"{save_dir}/blink_annotated_{session_timestamp}_{i+1}.jpg"
+            cv2.imwrite(annotated_filename, cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR))
+            
+            # Store the frame for later use
+            frames.append(frame)
+            
+            # Check if the LED at the specified position is lit
+            if position_index < len(results):
+                led_state = results[position_index]['lit']
+                led_color = results[position_index]['color'] if led_state else 'none'
+                states.append(led_state)
+                print(f"Frame {i+1}: LED {position_index+1} is {'ON' if led_state else 'OFF'} " + 
+                    (f"(Color: {led_color})" if led_state else ""))
+            else:
+                print(f"Error: Position {position_index+1} not found in results")
+                states.append(False)
+            
+            # Wait for the specified interval
+            if i < num_frames - 1:  # Don't wait after the last frame
+                time.sleep(interval_ms / 1000.0)
+        
+        # Analyze the results
+        frames_on = sum(states)
+        frames_off = len(states) - frames_on
+        
+        # Check if we detected both ON and OFF states (indicating blinking)
+        is_blinking = frames_on > 0 and frames_off > 0
+        
+        # Create result message
+        if len(states) == 0:
+            message = "Error: No frames were successfully analyzed"
+        elif is_blinking:
+            message = f"LED at position {position_index+1} is BLINKING (ON: {frames_on} frames, OFF: {frames_off} frames)"
+        elif frames_on == len(states):
+            message = f"LED at position {position_index+1} is CONSTANTLY ON (all {frames_on} frames)"
+        else:
+            message = f"LED at position {position_index+1} is CONSTANTLY OFF (all {frames_off} frames)"
+        
+        # Save a summary file with timestamps and states
+        summary_filename = f"{save_dir}/blink_summary_{session_timestamp}.txt"
+        with open(summary_filename, 'w') as f:
+            f.write(f"Blink detection for LED at position {position_index+1}\n")
+            f.write(f"Session: {session_timestamp}\n")
+            f.write(f"Frames captured: {len(states)}\n")
+            f.write(f"Results: {message}\n\n")
+            f.write("Frame-by-frame results:\n")
+            for i, (timestamp, state) in enumerate(zip(timestamps, states)):
+                f.write(f"Frame {i+1} [{timestamp.strftime('%H:%M:%S.%f')[:-3]}]: {'ON' if state else 'OFF'}\n")
+        
+        print(message)
+        
+        return {
+            'is_blinking': is_blinking,
+            'frames_on': frames_on,
+            'frames_off': frames_off,
+            'message': message,
+            'states': states
+        }
