@@ -13,8 +13,24 @@ import time
 import cv2
 import traceback
 import queue
+import os 
 
 from config import *
+
+def get_base_dir():
+    """Get or create the base directory for saving images"""
+    # Use the script's directory as a base
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.join(script_dir, 'SnapShotImages')
+    
+    # Create the directory if it doesn't exist
+    os.makedirs(base_dir, exist_ok=True)
+    return base_dir
+
+def get_image_path(filename):
+    """Get a full path for saving an image"""
+    return os.path.join(get_base_dir(), filename)
+
 
 # Custom stream class to redirect stdout to our GUI
 class OutputStreamRedirector(object):
@@ -231,8 +247,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 # Crop the frame to the size of the red rectangle
                 cropped_frame = frame[OCR_RECT_Y:OCR_RECT_Y + OCR_RECT_HEIGHT, OCR_RECT_X:OCR_RECT_X + OCR_RECT_WIDTH]
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
+                # image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/processed_snapshot_simple{timestamp}.jpg"                 
                 
+                image_filename = get_image_path(f"processed_snapshot_simple{timestamp}.jpg") 
                 # Save the processed image for OCR
                 cv2.imwrite(image_filename, cropped_frame)
                 
@@ -558,7 +575,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if frame is not None:
                 cropped_frame = frame[OCR_RECT_Y:OCR_RECT_Y + OCR_RECT_HEIGHT, OCR_RECT_X:OCR_RECT_X + OCR_RECT_WIDTH]
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/LOCK2UNLOCK{timestamp}.jpg"
+                # image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/LOCK2UNLOCK{timestamp}.jpg"
+                
+                image_filename = get_image_path(f"LOCK2UNLOCK{timestamp}.jpg")
                 cv2.imwrite(image_filename, cropped_frame)
                 
                 print("✅ Image captured and saved")
@@ -683,15 +702,18 @@ class MainWindow(QtWidgets.QMainWindow):
             if frame is not None:
                 # Save a copy of the frame for reference
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_{timestamp}.jpg"
+                # image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_{timestamp}.jpg"
+                image_filename = get_image_path(f"led_verification_{timestamp}.jpg")
                 cv2.imwrite(image_filename, frame)
                 
                 # Process the frame to detect LEDs
                 results, display_img = self.led_detector.detect_leds(frame, self.led_box_coordinates)
                 
                 # Save the annotated image
-                cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_{timestamp}.jpg", 
+                cv2.imwrite(get_image_path(f"led_detection_{timestamp}.jpg"), 
                            cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
+                # cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_{timestamp}.jpg", 
+                        #    cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
                 
                 # Verify if exactly 2 green LEDs are lit
                 verification_success, message = self.led_detector.check_green_leds(results)
@@ -820,14 +842,17 @@ class MainWindow(QtWidgets.QMainWindow):
             if frame is not None:
                 # Save a copy of the frame for reference
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_IP20_{timestamp}.jpg"
+                # image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_IP20_{timestamp}.jpg"
+                image_filename = get_image_path(f"led_verification_IP20_{timestamp}.jpg")
                 cv2.imwrite(image_filename, frame)
                 
                 # Process the frame to detect LEDs
                 results, display_img = self.led_detector.detect_leds(frame, self.led_box_coordinates)
                 
                 # Save the annotated image
-                cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_IPG20_{timestamp}.jpg", 
+                # cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_IPG20_{timestamp}.jpg", 
+                #            cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
+                cv2.imwrite(get_image_path(f"led_detection_IPG20_{timestamp}.jpg"), 
                            cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
                 
                 # Verify if exactly 2 green LEDs are lit
