@@ -154,7 +154,7 @@ QProgressBar::chunk {
       <property name="font">
        <font>
         <family>Segoe UI</family>
-        <pointsize>10</pointsize>
+        <pointsize>15</pointsize>
        </font>
       </property>
       <property name="cursor">
@@ -181,7 +181,7 @@ QProgressBar::chunk {
             <property name="font">
              <font>
               <family>Segoe UI</family>
-              <pointsize>11</pointsize>
+              <pointsize>15</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -232,7 +232,7 @@ QProgressBar::chunk {
             <property name="font">
              <font>
               <family>Segoe UI</family>
-              <pointsize>10</pointsize>
+              <pointsize>15</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -246,7 +246,7 @@ QProgressBar::chunk {
                <property name="font">
                 <font>
                  <family>Segoe UI</family>
-                 <pointsize>14</pointsize>
+                 <pointsize>19</pointsize>
                  <weight>75</weight>
                  <bold>true</bold>
                 </font>
@@ -286,7 +286,7 @@ QProgressBar::chunk {
                <property name="font">
                 <font>
                  <family>Segoe UI</family>
-                 <pointsize>9</pointsize>
+                 <pointsize>14</pointsize>
                 </font>
                </property>
                <property name="cursor">
@@ -337,7 +337,7 @@ QProgressBar::chunk {
             <property name="font">
              <font>
               <family>Segoe UI</family>
-              <pointsize>10</pointsize>
+              <pointsize>15</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -353,7 +353,7 @@ QProgressBar::chunk {
                  <property name="font">
                   <font>
                    <family>Segoe UI</family>
-                   <pointsize>11</pointsize>
+                   <pointsize>20</pointsize>
                    <weight>75</weight>
                    <bold>true</bold>
                   </font>
@@ -374,7 +374,7 @@ QProgressBar::chunk {
                  <property name="font">
                   <font>
                    <family>Segoe UI</family>
-                   <pointsize>11</pointsize>
+                   <pointsize>16</pointsize>
                    <weight>50</weight>
                    <bold>false</bold>
                   </font>
@@ -404,7 +404,7 @@ QProgressBar::chunk {
                  <property name="font">
                   <font>
                    <family>Segoe UI</family>
-                   <pointsize>11</pointsize>
+                   <pointsize>16</pointsize>
                    <weight>50</weight>
                    <bold>false</bold>
                   </font>
@@ -431,7 +431,7 @@ QProgressBar::chunk {
                  <property name="font">
                   <font>
                    <family>Segoe UI</family>
-                   <pointsize>11</pointsize>
+                   <pointsize>20</pointsize>
                    <weight>75</weight>
                    <bold>true</bold>
                   </font>
@@ -454,7 +454,7 @@ QProgressBar::chunk {
                <property name="font">
                 <font>
                  <family>DejaVu Sans</family>
-                 <pointsize>10</pointsize>
+                 <pointsize>16</pointsize>
                  <weight>75</weight>
                  <bold>true</bold>
                 </font>
@@ -470,7 +470,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>15</pointsize>
                       <weight>50</weight>
                       <bold>false</bold>
                      </font>
@@ -500,7 +500,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>20</pointsize>
                       <weight>75</weight>
                       <bold>true</bold>
                      </font>
@@ -521,7 +521,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>15</pointsize>
                       <weight>50</weight>
                       <bold>false</bold>
                      </font>
@@ -548,7 +548,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>20</pointsize>
                       <weight>75</weight>
                       <bold>true</bold>
                      </font>
@@ -569,7 +569,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>15</pointsize>
                       <weight>50</weight>
                       <bold>false</bold>
                      </font>
@@ -599,7 +599,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>20</pointsize>
                       <weight>75</weight>
                       <bold>true</bold>
                      </font>
@@ -632,7 +632,7 @@ QProgressBar::chunk {
             <property name="font">
              <font>
               <family>Segoe UI</family>
-              <pointsize>10</pointsize>
+              <pointsize>15</pointsize>
               <weight>75</weight>
               <bold>true</bold>
              </font>
@@ -647,7 +647,7 @@ QProgressBar::chunk {
             <property name="font">
              <font>
               <family>Segoe UI</family>
-              <pointsize>9</pointsize>
+              <pointsize>14</pointsize>
              </font>
             </property>
             <property name="styleSheet">

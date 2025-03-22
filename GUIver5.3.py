@@ -262,7 +262,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         self.lowVoltageTestResult.setText('PASS')
                         self.arduino.send_command('PRESS_P')
                         # self.finish() #Comment out to continue to test the paddle flow 
-                        if(self.modelList.currentText() == "F60"):
+                        if(self.modelList.currentText() == "F60" or self.modelList.currentText() == "IPG20"):
                             return
                         else:
                             self.finish()
@@ -355,7 +355,7 @@ class MainWindow(QtWidgets.QMainWindow):
         checkbox_font.setPointSize(16)
         
         checkboxes = [
-            QtWidgets.QCheckBox("Webcam is connected with your laptop"),
+            QtWidgets.QCheckBox("Power jack is plugged into electric box"),
             QtWidgets.QCheckBox("USB cable is connected to your laptop"),
             QtWidgets.QCheckBox("You have openned air pressure")
         ]
@@ -523,7 +523,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif response == "PADDLE_PUSHED":
                     print("PADDLE_PUSHED")
                     self.logMessageLine.setText("PADDLE_PUSHED")
-                    QTimer.singleShot(1000, self.capture_led_state_F60)
+                    model = self.modelList.currentText()
+                    if (model == "F60"):
+                        QTimer.singleShot(1000, self.capture_led_state_F60)
+                    elif (model == "IPG20"):
+                        QTimer.singleShot(1000, self.LED_test_IPG20)
                 elif response == "BLINKING_TEST_F60":
                     print("BLINKING_TEST_F60")
                     self.logMessageLine.setText("BLINKING_TEST_F60")
@@ -802,6 +806,65 @@ class MainWindow(QtWidgets.QMainWindow):
             self.highVoltageTestResult.setText('ERROR')
             self.finish()    
             
+    def LED_test_IPG20(self):
+        """Capture the current state of the LEDs for verification"""
+        if not self.is_running:
+            return
+            
+        try:
+            print("Capturing LED states...")
+            
+            # Get the latest frame from the webcam
+            frame = self.webcam_thread.get_latest_frame()
+            
+            if frame is not None:
+                # Save a copy of the frame for reference
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_IP20_{timestamp}.jpg"
+                cv2.imwrite(image_filename, frame)
+                
+                # Process the frame to detect LEDs
+                results, display_img = self.led_detector.detect_leds(frame, self.led_box_coordinates)
+                
+                # Save the annotated image
+                cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_IPG20_{timestamp}.jpg", 
+                           cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
+                
+                # Verify if exactly 2 green LEDs are lit
+                verification_success, message = self.led_detector.check_green_leds(results)
+                
+                # Log detailed results
+                print("\nLED Detection Results:")
+                for result in results:
+                    print(f"Box {result['box_id']} ({result['position']}): LED is {'ON' if result['lit'] else 'OFF'}")
+                    if result['lit']:
+                        print(f"  Color: {result['color']}")
+                        print(f"  Brightness: {result['brightness']:.2f}")
+                
+                print(message)
+                
+                # Update the GUI with the result
+                if verification_success:
+                    #Continue with blinking test
+                    self.check_blinking_led_F60()
+                    # self.paddleFlowTestResult.setText('PASS')
+                    
+                else:
+                    self.paddleFlowTestResult.setText('FAIL')
+                
+                # Now we can finish the test
+                # self.finish()
+            else:
+                print("Error: Could not capture frame for LED verification")
+                self.paddleFlowTestResult.setText('ERROR')
+                self.finish()
+                
+        except Exception as e:
+            print(f"Error in LED verification: {str(e)}")
+            traceback.print_exc()
+            self.highVoltageTestResult.setText('ERROR')
+            self.finish() 
+    
     
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
