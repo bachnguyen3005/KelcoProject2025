@@ -17,7 +17,7 @@ class SerialCommunicator:
                 if data:
                     return data
             if time.time() - start_time > max_wait_time:
-                print("Timed out waiting for data")
+                print("Processing data...")
                 break
         return data
 

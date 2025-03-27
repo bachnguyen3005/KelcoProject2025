@@ -90,7 +90,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             # Directly use SerialCommunicator from utils
             self.arduino = SerialCommunicator(port=self.arduino_port, baudrate=self.arduino_baudrate, timeout=1)
-            print("✅ Arduino connected successfully")
+            print("Arduino connected successfully...")
         except Exception as e:
             print(f"Error initializing Arduino: {str(e)}")
             self.arduino = None
@@ -106,11 +106,12 @@ class MainWindow(QtWidgets.QMainWindow):
         ]
         # Connect signals - use installEventFilter for the stop button
         self.startButton.installEventFilter(self)
-        self.viewButton.clicked.connect(self.start_webcam)
-        self.closeButton.clicked.connect(self.stop_webcam)
-        self.Snap.clicked.connect(self.snapshot)
+        self.viewButton.setVisible(False)
+        self.Snap.setVisible(False)
+        self.closeButton.setVisible(False)
         
         # Initialize GUI state
+        self.progressBar.setValue(00)
         self.startButton.setText("GO")
         
         # Arduino monitoring timer
@@ -120,6 +121,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initialize components
         QTimer.singleShot(0, self.initialize_ocr)
         QTimer.singleShot(0, self.start_webcam)
+        
     
     def eventFilter(self, obj, event):
         """Custom event filter for high-priority button events"""
@@ -156,7 +158,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Start the webcam thread
         if self.webcam_thread.start_capture(camera_index):
             self.is_webcam_open = True
-            print("✅ Webcam started ✅")
+            print("Webcam started...")
         else:
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", 
                                         "Could not open webcam")
@@ -192,7 +194,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.perform_emergency_stop()
     
     def perform_emergency_stop(self):
-        print("🚨 EMERGENCY STOP ACTIVATED 🚨")
+        print("EMERGENCY STOP ACTIVATED...")
         
         # First, set flags to indicate we're stopping
         self.is_running = False
@@ -211,7 +213,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.arduino:
             try:
                 self.arduino.send_command('STOP')
-                print("STOP command sent to Arduino")
+                print("STOP command sent to Arduino...")
                 
                 # Clear any data in the serial buffer
                 time.sleep(0.1)  # Short delay to allow Arduino to process
@@ -232,11 +234,11 @@ class MainWindow(QtWidgets.QMainWindow):
         QApplication = QtWidgets.QApplication.instance()
         QApplication.processEvents()
         
-        print("System emergency stopped")
+        print("System emergency stopped...")
     
     def snapshot(self):
         if not self.is_running:
-            print("System not running, snapshot cancelled")
+            print("System not running, snapshot cancelled...")
             return
                 
         try:
@@ -244,6 +246,7 @@ class MainWindow(QtWidgets.QMainWindow):
             frame = self.webcam_thread.get_latest_frame()
             
             if frame is not None:
+                self.progressBar.setValue(40)
                 # Crop the frame to the size of the red rectangle
                 cropped_frame = frame[OCR_RECT_Y:OCR_RECT_Y + OCR_RECT_HEIGHT, OCR_RECT_X:OCR_RECT_X + OCR_RECT_WIDTH]
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -267,7 +270,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error extracting data")
                         self.finish()
                 else: # Successfully extract text 
-                    print(f"OCR Result: {result_number}")
+                    print(f"[kPa Cal] result: {result_number}")
 
                     kPa = result_number[0]
                     Cal = result_number[1]
@@ -276,6 +279,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.calNumber.setText(str(Cal))
 
                     if kPa == 0:
+                        self.progressBar.setValue(50)
                         self.lowVoltageTestResult.setText('PASS')
                         self.arduino.send_command('PRESS_P')
                         # self.finish() #Comment out to continue to test the paddle flow 
@@ -291,7 +295,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         else:
                             self.finish()
             else:
-                print("Error: No frame available from webcam")
+                print("Error: No frame available from webcam...")
                         
         except Exception as e:
             print(f"Error in snapshot: {str(e)}")
@@ -300,7 +304,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def initialize_ocr(self): 
         try:
             self.ocr_processor = OCRProcessor()
-            print("✅ OCR system initialized")
+            print("OCR system initialized...")
         except Exception as e:
             print(f"Error initializing OCR: {str(e)}")
             traceback.print_exc()
@@ -464,6 +468,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def start(self):
         # Reset UI elements
+        self.progressBar.setValue(0)
         self.calNumber.setText('--')
         self.kpaNumber.setText('--')
         self.paddleFlowTestResult.setText('--')
@@ -478,7 +483,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Arduino not connected")
             return
         
-        print("Starting sequence")
+        print("Starting...")
         
         # Send the PUMP_SEQ command directly
         try:
@@ -501,53 +506,51 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             response = self.arduino.read_command()
             if response:
-                print(f"Received response: {response}")
+                print(f"Received response: {response}...")
                 
                 # Handle different responses
                 if response == "DONE":
                     self.capture_lock_status()
                 elif response == "PRESSED_RESET":
-                    print("PRESSED_RESET")
-                    self.logMessageLine.setText("PRESSED_RESET")
+                    self.progressBar.setValue(22)
+                    print("Pressing reset button...")
                 elif response == "ACCESS_CALIBRATION_MODE":
-                    print("ACCESS_CALIBRATION_MODE")
-                    self.logMessageLine.setText("ACCESS_CALIBRATION_MODE")
+                    self.progressBar.setValue(24)
+                    print("Entered calibration mode...")
                 elif response == "PRESSED_P":
-                    print("PRESSED_P")
-                    self.logMessageLine.setText("PRESSED_P")
+                    self.progressBar.setValue(26)
+                    print("Pressing Programming button...")
                 elif response == "OPEN_AIR":
-                    print("OPEN_AIR")
-                    self.logMessageLine.setText("OPEN_AIR")
+                    self.progressBar.setValue(28)
+                    print("Open main air...")
                 elif response == "CLOSE_AIR":
-                    print("CLOSE_AIR")
-                    self.logMessageLine.setText("CLOSE_AIR")
+                    self.progressBar.setValue(30)
+                    print("Close main air...")
                 elif response == "MID_AIR_OPEN":
-                    print("MID_AIR_OPEN")
-                    self.logMessageLine.setText("MID_AIR_OPEN")
+                    self.progressBar.setValue(32)
+                    print("Open middle air valve...")
                 elif response == "MID_AIR_CLOSE":
-                    print("MID_AIR_CLOSE")
-                    self.logMessageLine.setText("MID_AIR_CLOSE")
+                    self.progressBar.setValue(34)
+                    print("Close middle air...")
                 elif response == "SEQUENCE_COMPLETE":
-                    print("SEQUENCE_COMPLETE")
-                    self.logMessageLine.setText("SEQUENCE_COMPLETE")
+                    print("Start reading text...")
                     QTimer.singleShot(500, self.snapshot)  # Small delay to let everything settle
                 elif response == "P_PRESSED_TWICE":
                     print(f"Current model: {self.modelList.currentText()}")
-                    print("P_PRESSED_TWICE")
-                    self.logMessageLine.setText("P_PRESSED_TWICE")   
-                    self.arduino.send_command('PUSH_PADDLE')    
-                    self.logMessageLine.setText("Start pushing paddle!")             
+                    print("Pressing P twice...")
+                    print("Start pushing paddle & press Reset now...") 
+                    self.arduino.send_command('PUSH_PADDLE')                  
                 elif response == "PADDLE_PUSHED":
-                    print("PADDLE_PUSHED")
-                    self.logMessageLine.setText("PADDLE_PUSHED")
+                    print("Paddle is pushed...")
                     model = self.modelList.currentText()
                     if (model == "F60"):
+                        print("Verifying LEDs for F60...")
                         QTimer.singleShot(1000, self.capture_led_state_F60)
                     elif (model == "IPG20"):
+                        print("Verifying LEDs for IPG20...")
                         QTimer.singleShot(1000, self.LED_test_IPG20)
                 elif response == "BLINKING_TEST_F60":
-                    print("BLINKING_TEST_F60")
-                    self.logMessageLine.setText("BLINKING_TEST_F60")
+                    print("Verifying LEDS for F60...")
                     self.check_blinking_led_F60()
                 
                 
@@ -560,7 +563,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
                 
         try:
-            print("✅ Capturing lock status now...")
+            print("Verifying lock status...")
             
             # Give extra time for the display to stabilize
             for i in range(3):
@@ -580,7 +583,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 image_filename = get_image_path(f"LOCK2UNLOCK{timestamp}.jpg")
                 cv2.imwrite(image_filename, cropped_frame)
                 
-                print("✅ Image captured and saved")
+                print("Image captured and saved...")
                 
                 # Process lock status directly
                 extracted_text = self.ocr_processor.get_lock_status(image_filename)
@@ -590,7 +593,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if extracted_text == "LOCKED" or extracted_text == "UNLOCKED":
                     command = 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
                     print(f"Starting {extracted_text} sequence")
-                    self.progressBar.setValue(50)
+                    self.progressBar.setValue(20)
                     # Send command directly
                     self.arduino.send_command(command)
                     
@@ -617,6 +620,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Only reset if we're still running
         if self.is_running:
             self.startButton.setText("GO")
+            self.progressBar.setValue(0)
             self.is_running = False
             
             # Stop Arduino monitoring
@@ -731,15 +735,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 # Update the GUI with the result
                 if verification_success:
                     #Continue with blinking test
+                    self.progressBar.setValue(60)
                     self.arduino.send_command("START_BLINKING_TEST_F60")
-                    self.logMessageLine.setText("Push back the paddle to intial position!")
-                    # self.paddleFlowTestResult.setText('PASS')
+                    print("Push back the paddle to intial position...")
                     
                 else:
                     self.paddleFlowTestResult.setText('FAIL')
                 
-                # Now we can finish the test
-                # self.finish()
             else:
                 print("Error: Could not capture frame for LED verification")
                 self.paddleFlowTestResult.setText('ERROR')
@@ -773,15 +775,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 f"Selected baudrate: {arduino_baudrate}"
             )
         else:
-            # User clicked Cancel, show a message that we'll use defaults
-            QtWidgets.QMessageBox.information(
-                self,
-                "Using Defaults",
-                "Using default connections:\n"
-                f"Webcam: {webcam_index}\n"
-                f"Arduino port: {arduino_port}\n"
-                f"Baudrate: {arduino_baudrate}"
-            )
+            # # User clicked Cancel, show a message that we'll use defaults
+            # QtWidgets.QMessageBox.information(
+            #     self,
+            #     "Using Defaults",
+            #     "Using default connections:\n"
+            #     f"Webcam: {webcam_index}\n"
+            #     f"Arduino port: {arduino_port}\n"
+            #     f"Baudrate: {arduino_baudrate}"
+            # )
+            return
             
         return webcam_index, arduino_port, arduino_baudrate    
     
@@ -811,16 +814,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.paddleFlowTestResult.setText('PASS')
             else:
                 if blink_results['frames_on'] > 0:
-                    print("⚠️ LED at position 2 is on but not blinking")
+                    print("LED at position 2 is on but not blinking...")
+                    self.progressBar.setValue(75)
                     self.paddleFlowTestResult.setText('PASS')
                     
                 else:
-                    print("❌ LED at position 2 is not lighting up")
+                    print("LED at position 2 is not lighting up...")
                     self.paddleFlowTestResult.setText('FAIL')
+                    self.finish()
             
             # After LED verification is complete, we can continue with remaining
             # test steps or finish the test
-            self.finish()
+            # self.finish()
                 
         except Exception as e:
             print(f"Error in blinking LED verification: {str(e)}")
@@ -870,6 +875,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 # Update the GUI with the result
                 if verification_success:
+                    self.progressBar.setValue(60)
                     #Continue with blinking test
                     self.check_blinking_led_F60()
                     # self.paddleFlowTestResult.setText('PASS')

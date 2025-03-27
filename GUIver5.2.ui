@@ -91,11 +91,16 @@ QComboBox {
   border-radius: 6px;
   padding: 6px 12px;
   background-color: white;
+  selection-background-color: #3498db;
+  selection-color: white;
 }
 
 QComboBox::drop-down {
   border: none;
   width: 20px;
+}
+QComboBox::down-arrow {
+    image: url(/usr/share/qt5/doc/global/template/images/arrow_down.png);
 }
 
 QProgressBar {
@@ -694,8 +699,7 @@ QProgressBar::chunk {
                </size>
               </property>
               <property name="styleSheet">
-               <string notr="true">background-color: #f0f0f0;
-border-radius: 8px;</string>
+               <string notr="true">background-color: #f0f0f0;border-radius: 8px;</string>
               </property>
               <property name="text">
                <string>Camera Feed</string>
