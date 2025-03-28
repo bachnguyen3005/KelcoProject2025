@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal, QObject, QEvent
-from PyQt5.QtGui import QImage, QPixmap, QPainter, QMovie
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QMovie, QColor
 from ocr import OCRProcessor
 from utils import SerialCommunicator
 from led_detector import LEDDetector  
@@ -121,8 +121,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initialize components
         QTimer.singleShot(0, self.initialize_ocr)
         QTimer.singleShot(0, self.start_webcam)
-        
-    
+               
     def eventFilter(self, obj, event):
         """Custom event filter for high-priority button events"""
         if obj == self.startButton and event.type() == QEvent.MouseButtonPress:
@@ -145,8 +144,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def populate_model_list(self):
         # Add items to the combo box
         models = ["F60", "E30", "IPG20", "F29"]
-        self.modelList.addItems(models)
-    
+        self.modelList.addItems(models) 
+        
     def start_webcam(self):
         # Stop any existing webcam thread first
         if hasattr(self, 'webcam_thread') and self.webcam_thread.running:
@@ -195,7 +194,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def perform_emergency_stop(self):
         print("EMERGENCY STOP ACTIVATED...")
-        
+                
         # First, set flags to indicate we're stopping
         self.is_running = False
         
@@ -240,6 +239,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.is_running:
             print("System not running, snapshot cancelled...")
             return
+         
                 
         try:
             # Get the latest frame directly from the thread
@@ -261,10 +261,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 # Check if we're still running after OCR
                 if not self.is_running:
+                    
                     return
                     
                 # Handle OCR result
                 if result_number == "ERROR":
+                    
                     # Only show message box if still running
                     if self.is_running:
                         QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "Error extracting data")
@@ -278,28 +280,34 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.kpaNumber.setText(str(kPa))
                     self.calNumber.setText(str(Cal))
 
+                    
+                    
                     if kPa == 0:
                         self.progressBar.setValue(50)
                         self.lowVoltageTestResult.setText('PASS')
                         self.arduino.send_command('PRESS_P')
-                        # self.finish() #Comment out to continue to test the paddle flow 
                         if(self.modelList.currentText() == "F60" or self.modelList.currentText() == "IPG20"):
-                            return
+                            return #Conitnue to paddle flow test - LED test
+                        elif(self.modelList.currentText() == "E30"):
+                            print('Start high-voltage test for E30...')
+                            #Add the function to continue to high voltage test
                         else:
                             self.finish()
                         
                     else:
                         self.lowVoltageTestResult.setText('ERROR')
-                        if(self.modelList.currentText() == "F60"):
-                            return
+                        if(self.modelList.currentText() == "F60" or self.modelList.currentText() == "IPG20"):
+                            return #Continue to paddle flow test - LED test 
                         else:
                             self.finish()
             else:
+                
                 print("Error: No frame available from webcam...")
                         
         except Exception as e:
             print(f"Error in snapshot: {str(e)}")
             traceback.print_exc()
+            
     
     def initialize_ocr(self): 
         try:
@@ -594,21 +602,26 @@ class MainWindow(QtWidgets.QMainWindow):
                     command = 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
                     print(f"Starting {extracted_text} sequence")
                     self.progressBar.setValue(20)
+                    
                     # Send command directly
                     self.arduino.send_command(command)
                     
                 else:
                     # If we can't recognize the status, try again with a delay
+                    
                     print("Lock status not recognized, waiting to try again...")
-                    QTimer.singleShot(2000, self.retry_capture_lock_status)
+                    self.confirm_finish()
+                    # QTimer.singleShot(2000, self.retry_capture_lock_status)
                     
             else:
+                
                 print("Error: Failed to capture frame from webcam")
                 self.confirm_finish()
                         
         except Exception as e:
             print(f"Error capturing lock status: {str(e)}")
             traceback.print_exc()
+            
             self.confirm_finish()
     
     def retry_capture_lock_status(self):
@@ -616,7 +629,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.is_running:
             self.capture_lock_status()
         
-    def finish(self):
+    def finish(self):         
         # Only reset if we're still running
         if self.is_running:
             self.startButton.setText("GO")
@@ -627,7 +640,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.arduino_timer.isActive():
                 self.arduino_timer.stop()
                 
-            print("Process finished")
+            print("Process finished...")
         
     def update_frame(self):
         ret, frame = self.cap.read()
@@ -810,16 +823,19 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # Update GUI based on results
             if blink_results['is_blinking']:
-                print("✅ LED at position 2 is blinking correctly")
+                self.progressBar.setValue(75)
+                print("LEDs are blinking correctly...")
                 self.paddleFlowTestResult.setText('PASS')
+                self.finish()
             else:
                 if blink_results['frames_on'] > 0:
-                    print("LED at position 2 is on but not blinking...")
+                    print("LEDs are blinking correctly")
                     self.progressBar.setValue(75)
                     self.paddleFlowTestResult.setText('PASS')
+                    self.finish()
                     
                 else:
-                    print("LED at position 2 is not lighting up...")
+                    print("LEDs have error...")
                     self.paddleFlowTestResult.setText('FAIL')
                     self.finish()
             

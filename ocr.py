@@ -109,8 +109,11 @@ class OCRProcessor:
             if text.startswith('L'):
                 print("LOCKED")
                 return "LOCKED"
-            else:
+            elif text.startswith('U'):
+                print("UNLOCKED")
                 return "UNLOCKED"
+            else:
+                return "UNKNOWN"
 
         # Default to "UNKNOWN" if no valid text is found
         return "UNKNOWN"
