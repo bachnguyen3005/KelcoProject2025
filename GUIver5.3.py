@@ -306,8 +306,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         
         except Exception as e:
             print(f"Error in snapshot: {str(e)}")
-            traceback.print_exc()
-            
+            traceback.print_exc()    
     
     def initialize_ocr(self): 
         try:
@@ -391,8 +390,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Create icons for each checkbox (you can replace with actual icons if available)
         icons = [
-            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_ComputerIcon),
-            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon),
+            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_DialogApplyButton),
+            QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_DialogApplyButton),
             QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_DialogApplyButton)
         ]
         
@@ -606,23 +605,21 @@ class MainWindow(QtWidgets.QMainWindow):
                     # Send command directly
                     self.arduino.send_command(command)
                     
-                else:
-                    # If we can't recognize the status, try again with a delay
+                else:                
+                    print("Lock status not recognized, please try again...")
+                    self.arduino.send_command("STOP")
+                    self.confirm_finish_with_error()
                     
-                    print("Lock status not recognized, waiting to try again...")
-                    self.confirm_finish()
-                    # QTimer.singleShot(2000, self.retry_capture_lock_status)
                     
             else:
                 
                 print("Error: Failed to capture frame from webcam")
-                self.confirm_finish()
+                self.confirm_finish_with_error()
                         
         except Exception as e:
             print(f"Error capturing lock status: {str(e)}")
             traceback.print_exc()
-            
-            self.confirm_finish()
+            self.confirm_finish_with_error()
     
     def retry_capture_lock_status(self):
         """Retry capturing lock status after a delay"""
@@ -633,7 +630,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Only reset if we're still running
         if self.is_running:
             self.startButton.setText("GO")
-            self.progressBar.setValue(0)
             self.is_running = False
             
             # Stop Arduino monitoring
@@ -675,35 +671,22 @@ class MainWindow(QtWidgets.QMainWindow):
         # Update the label with the modified pixmap
         self.webcamFrame.setPixmap(pixmap)
 
-    def confirm_finish(self): 
+    def confirm_finish_with_error(self): 
         # Check if we're still running before showing dialog
         if not self.is_running:
             return
             
         msgBox = QtWidgets.QMessageBox()
-        msgBox.setIcon(QtWidgets.QMessageBox.Information)
-        font = QtGui.QFont()
-        font.setPointSize(20)  # Set a larger font size
-        msgBox.setWindowTitle('Confirm Finished')
-        msgBox.setText('Finished')
-        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes)
-        msgBox.setDefaultButton(QtWidgets.QMessageBox.Yes)
-        response = msgBox.exec_()
-        if response == QtWidgets.QMessageBox.Yes:
-            self.finish()
-
-    def error(self):
-        # Check if we're still running before showing dialog
-        if not self.is_running:
-            return
-            
-        msgBox = QtWidgets.QMessageBox()
-        msgBox.setIcon(QtWidgets.QMessageBox.Critical)
+        msgBox.setIcon(QtWidgets.QMessageBox.Warning)
         font = QtGui.QFont()
         font.setPointSize(20)  # Set a larger font size
         msgBox.setWindowTitle('Error')
-        msgBox.setText('Error occured! Please try again')
-        self.finish()
+        msgBox.setText('Error occurred...Please try again...')
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        response = msgBox.exec_()
+        if response == QtWidgets.QMessageBox.Ok:
+            self.finish()
 
     def capture_led_state_F60(self):
         """Capture the current state of the LEDs for verification"""

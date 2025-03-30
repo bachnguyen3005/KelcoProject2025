@@ -1,0 +1,36 @@
+Blink detection for LED at position 2
+Session: 20250328_164036
+Frames captured: 30
+Results: LED at position 2 is BLINKING (ON: 13 frames, OFF: 17 frames)
+
+Frame-by-frame results:
+Frame 1 [16:40:36.523]: OFF
+Frame 2 [16:40:36.729]: ON
+Frame 3 [16:40:36.943]: ON
+Frame 4 [16:40:37.156]: OFF
+Frame 5 [16:40:37.369]: OFF
+Frame 6 [16:40:37.583]: OFF
+Frame 7 [16:40:37.789]: OFF
+Frame 8 [16:40:37.996]: ON
+Frame 9 [16:40:38.211]: ON
+Frame 10 [16:40:38.427]: OFF
+Frame 11 [16:40:38.641]: OFF
+Frame 12 [16:40:38.848]: OFF
+Frame 13 [16:40:39.064]: ON
+Frame 14 [16:40:39.280]: ON
+Frame 15 [16:40:39.495]: ON
+Frame 16 [16:40:39.711]: OFF
+Frame 17 [16:40:39.926]: OFF
+Frame 18 [16:40:40.133]: OFF
+Frame 19 [16:40:40.347]: ON
+Frame 20 [16:40:40.563]: ON
+Frame 21 [16:40:40.777]: ON
+Frame 22 [16:40:40.992]: OFF
+Frame 23 [16:40:41.206]: OFF
+Frame 24 [16:40:41.421]: OFF
+Frame 25 [16:40:41.635]: ON
+Frame 26 [16:40:41.849]: ON
+Frame 27 [16:40:42.065]: ON
+Frame 28 [16:40:42.280]: OFF
+Frame 29 [16:40:42.504]: OFF
+Frame 30 [16:40:42.719]: OFF
