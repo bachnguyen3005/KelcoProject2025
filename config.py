@@ -2,10 +2,10 @@
 # Global configuration settings for the application
 
 # OCR capture rectangle dimensions
-OCR_RECT_X = 115
-OCR_RECT_Y = 235
-OCR_RECT_WIDTH = 410
-OCR_RECT_HEIGHT = 125
+OCR_RECT_X = 105
+OCR_RECT_Y = 225
+OCR_RECT_WIDTH = 420
+OCR_RECT_HEIGHT = 135
 
 # Camera settings
 CAMERA_INDEX = 2  # Default camera index

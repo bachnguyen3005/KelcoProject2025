@@ -504,7 +504,7 @@ class LEDBoxSelector:
 
 if __name__ == "__main__":
     # Create the webcam LED detector
-    detector = WebcamLEDDetector(camera_id=0)  # Use camera ID 0 (default webcam)
+    detector = WebcamLEDDetector(camera_id=2)  # Use camera ID 0 (default webcam)
     
     # Check if boxes are already defined
     if not detector.load_boxes():

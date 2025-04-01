@@ -100,10 +100,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Add box coordinates for LED detection
         self.led_box_coordinates = [
-            [56, 269, 37, 37], 
-            [60, 329, 36, 33],
-            [65, 383, 40, 34]
+            [47,268,26,25],
+            [52,326,25,27],
+            [56,381,29,27]
         ]
+
         # Connect signals - use installEventFilter for the stop button
         self.startButton.installEventFilter(self)
         self.viewButton.setVisible(False)
@@ -134,7 +135,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 QTimer.singleShot(0, self.toggle_Go_Stop)
                 return True  # Event handled
                 
-        # Pass other events to the base class
+        # PASSED other events to the base class
         return super().eventFilter(obj, event)
     
     def __del__(self):
@@ -239,8 +240,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.is_running:
             print("System not running, snapshot cancelled...")
             return
-         
-                
+               
         try:
             # Get the latest frame directly from the thread
             frame = self.webcam_thread.get_latest_frame()
@@ -279,17 +279,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
                     self.kpaNumber.setText(str(kPa))
                     self.calNumber.setText(str(Cal))
-
-                    
                     
                     if kPa == 0:
                         self.progressBar.setValue(50)
-                        self.lowVoltageTestResult.setText('PASS')
+                        self.lowVoltageTestResult.setText('PASSED')
                         self.arduino.send_command('PRESS_P')
                         if(self.modelList.currentText() == "F60" or self.modelList.currentText() == "IPG20"):
                             return #Conitnue to paddle flow test - LED test
                         elif(self.modelList.currentText() == "E30"):
                             print('Start high-voltage test for E30...')
+                            self.arduino.send_command("CMD_HIGH_VOLTAGE_TEST")
                             #Add the function to continue to high voltage test
                         else:
                             self.finish()
@@ -559,11 +558,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif response == "BLINKING_TEST_F60":
                     print("Verifying LEDS for F60...")
                     self.check_blinking_led_F60()
+                elif response == "HIGH_VOLTAGE_TEST_PASS":
+                    self.highVoltageTestResult.setText('PASSED')
+                    self.progressBar.setValue(100)
+                    self.finish()
+                elif response == "HIGH_VOLTAGE_TEST_FAIL":
+                    self.highVoltageTestResult.setText('FAILED')
+                    self.progressBar.setValue(100)
+                    self.finish()
                 
                 
         except Exception as e:
             print(f"Error reading from Arduino: {str(e)}")
-    
+            self.perform_emergency_stop()
     def capture_lock_status(self):
         """Capture and process the lock status"""
         if not self.is_running:
@@ -736,7 +743,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     print("Push back the paddle to intial position...")
                     
                 else:
-                    self.paddleFlowTestResult.setText('FAIL')
+                    self.paddleFlowTestResult.setText('FAILED')
+                    self.finish()
                 
             else:
                 print("Error: Could not capture frame for LED verification")
@@ -808,18 +816,19 @@ class MainWindow(QtWidgets.QMainWindow):
             if blink_results['is_blinking']:
                 self.progressBar.setValue(75)
                 print("LEDs are blinking correctly...")
-                self.paddleFlowTestResult.setText('PASS')
-                self.finish()
+                self.paddleFlowTestResult.setText('PASSED')
+                self.arduino.send_command("HIGH_VOLTAGE_TEST")
+
             else:
                 if blink_results['frames_on'] > 0:
                     print("LEDs are blinking correctly")
                     self.progressBar.setValue(75)
-                    self.paddleFlowTestResult.setText('PASS')
-                    self.finish()
+                    self.paddleFlowTestResult.setText('PASSED')
+                    self.arduino.send_command("HIGH_VOLTAGE_TEST")
                     
                 else:
                     print("LEDs have error...")
-                    self.paddleFlowTestResult.setText('FAIL')
+                    self.paddleFlowTestResult.setText('FAILED')
                     self.finish()
             
             # After LED verification is complete, we can continue with remaining
@@ -880,7 +889,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     # self.paddleFlowTestResult.setText('PASS')
                     
                 else:
-                    self.paddleFlowTestResult.setText('FAIL')
+                    self.paddleFlowTestResult.setText('FAILED')
                 
                 # Now we can finish the test
                 # self.finish()
