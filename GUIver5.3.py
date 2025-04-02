@@ -539,7 +539,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.progressBar.setValue(34)
                     print("Close middle air...")
                 elif response == "SEQUENCE_COMPLETE":
-                    print("Start reading text...")
+                    print("Reading kPa and Cal...")
                     QTimer.singleShot(500, self.snapshot)  # Small delay to let everything settle
                 elif response == "P_PRESSED_TWICE":
                     print(f"Current model: {self.modelList.currentText()}")
