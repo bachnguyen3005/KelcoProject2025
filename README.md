@@ -2,14 +2,23 @@
 
 ## Overview
 
+![3D Model Overview](images/3D_model_exploded_view.png "3D model of the system overview")
+
 The Automated Calibration System is a PyQt5-based application designed to automate the calibration and testing process for various device models. The system integrates webcam capture, optical character recognition (OCR), LED detection, and Arduino-based control to create a streamlined testing workflow.
+
+#### 3D design of the system over view
+![3D Model Overview](images/3D_model_exploded_view.png "3D model of the system overview")
+
+Full model link in Fusion360: [Fusion model](https://url.au.m.mimecastprotect.com/s/ZeevC2xMo3spy90EnInfnc5tLDb?domain=a360.co)
+
+##### User interface overview
 ![GUI overview](images/GUI_overview.png "User iterface overview")
 ## System Architecture
 
 ### Main Components
 
-1. **GUI Interface**: Built with PyQt5 using a tab-based design with controller and camera views
-2. **Arduino Communication**: Serial interface for controlling hardware operations
+1. **GUI Interface**: Built with PyQt5 using multi-threaded. Designed with QtDesigner.
+2. **Arduino Communication**: UART protocol interface for controlling hardware operations
 3. **Computer Vision System**:
    - OCR for extracting readings from device displays
    - LED detection for verifying indicator states
