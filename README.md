@@ -1,9 +1,9 @@
-# Automated Calibration System Documentation
+# Automated Calibration System For Pump Controller Documentation
 
 ## Overview
 
 The Automated Calibration System is a PyQt5-based application designed to automate the calibration and testing process for various device models. The system integrates webcam capture, optical character recognition (OCR), LED detection, and Arduino-based control to create a streamlined testing workflow.
-
+![GUI overview](images/GUI_overview.png "User iterface overview")
 ## System Architecture
 
 ### Main Components
