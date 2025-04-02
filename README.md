@@ -13,7 +13,7 @@ The Automated Calibration System is a PyQt5-based application designed to automa
 Full model link in Fusion360: [Fusion model](https://url.au.m.mimecastprotect.com/s/ZeevC2xMo3spy90EnInfnc5tLDb?domain=a360.co)
 
 User interface overview
-![GUI overview](images/GUI_overview.png "User iterface overview")
+![GUI overview](images/GUI_overview.gif "User iterface overview")
 
 ## System Architecture
 
