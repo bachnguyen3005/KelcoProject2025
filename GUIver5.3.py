@@ -493,8 +493,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Send the PUMP_SEQ command directly
         try:
-            self.arduino.send_command('PUMP_SEQ')
             
+            if(self.modelList.currentText() == "F29"):
+                self.arduino.send_command('PUSH_PADDLE_FORWARD') #Push the paddle to flow if this is F29
+            
+            self.arduino.send_command('PUMP_SEQ')       
             # Start the Arduino monitoring timer
             self.arduino_timer.start(100)  # Check every 100ms
             self.timers.append(self.arduino_timer)
@@ -551,10 +554,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     model = self.modelList.currentText()
                     if (model == "F60"):
                         print("Verifying LEDs for F60...")
-                        QTimer.singleShot(1000, self.capture_led_state_F60)
+                        QTimer.singleShot(500, self.capture_led_state_F60)
                     elif (model == "IPG20"):
                         print("Verifying LEDs for IPG20...")
-                        QTimer.singleShot(1000, self.LED_test_IPG20)
+                        QTimer.singleShot(500, self.LED_test_IPG20)
                 elif response == "BLINKING_TEST_F60":
                     print("Verifying LEDS for F60...")
                     self.check_blinking_led_F60()
@@ -566,11 +569,17 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.highVoltageTestResult.setText('FAILED')
                     self.progressBar.setValue(100)
                     self.finish()
+                elif response == "START_PUSHING_PADDLE_TO_NO_FLOW_F29":
+                    self.arduino.send_command("PUSH_PADDLE_BACKWARD")
+                    print("Verifying LEDs for F29...")
+                    QTimer.singleShot(500, self.capture_led_state_F29)
+                    
                 
                 
         except Exception as e:
             print(f"Error reading from Arduino: {str(e)}")
             self.perform_emergency_stop()
+    
     def capture_lock_status(self):
         """Capture and process the lock status"""
         if not self.is_running:
@@ -605,13 +614,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 # Start the appropriate sequence
                 if extracted_text == "LOCKED" or extracted_text == "UNLOCKED":
-                    command = 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
-                    print(f"Starting {extracted_text} sequence")
                     self.progressBar.setValue(20)
-                    
-                    # Send command directly
-                    self.arduino.send_command(command)
-                    
+                    if(self.modelList.currentText() == "F60" or self.modelList.currentText() == "IPG20" or self.modelList.currentText() == "E30"):
+                        command = 'LOCKED_SEQUENCE' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE'
+                        print(f"Starting {extracted_text} sequence")
+                        # Send command directly
+                        self.arduino.send_command(command)
+                    else: 
+                        command = 'LOCKED_SEQUENCE_F29' if extracted_text == "LOCKED" else 'UNLOCKED_SEQUENCE_F29'
+                        print(f"Starting {extracted_text} sequence F29")
+                        # Send command directly
+                        self.arduino.send_command(command)
                 else:                
                     print("Lock status not recognized, please try again...")
                     self.arduino.send_command("STOP")
@@ -757,6 +770,70 @@ class MainWindow(QtWidgets.QMainWindow):
             self.highVoltageTestResult.setText('ERROR')
             self.finish()
         
+    def capture_led_state_F29(self):
+        """Capture the current state of the LEDs for verification"""
+        if not self.is_running:
+            return
+            
+        try:
+            print("Capturing LED states...")
+            
+            # Get the latest frame from the webcam
+            frame = self.webcam_thread.get_latest_frame()
+            
+            if frame is not None:
+                # Save a copy of the frame for reference
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                # image_filename = f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_verification_{timestamp}.jpg"
+                image_filename = get_image_path(f"led_verification_F29{timestamp}.jpg")
+                cv2.imwrite(image_filename, frame)
+                
+                # Process the frame to detect LEDs
+                results, display_img = self.led_detector.detect_leds(frame, self.led_box_coordinates)
+                
+                # Save the annotated image
+                cv2.imwrite(get_image_path(f"led_detection_F29{timestamp}.jpg"), 
+                           cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
+                # cv2.imwrite(f"/home/dinh/Documents/PlatformIO/Projects/kelco_test_001/SnapShotImages/led_detection_{timestamp}.jpg", 
+                        #    cv2.cvtColor(display_img, cv2.COLOR_RGB2BGR))
+                
+                # Verify if exactly 2 green LEDs are lit
+                verification_success, message = self.led_detector.check_leds_F29(results)
+                
+                # Log detailed results
+                print("\nF29 LED Detection Results:")
+                for result in results:
+                    print(f"Box {result['box_id']} ({result['position']}): LED is {'ON' if result['lit'] else 'OFF'}")
+                    if result['lit']:
+                        print(f"  Color: {result['color']}")
+                        print(f"  Brightness: {result['brightness']:.2f}")
+                
+                print(message)
+                
+                # Update the GUI with the result
+                if verification_success:
+                    #Continue with blinking test
+                    self.progressBar.setValue(60)
+                    self.arduino.send_command("PUSH_PADDLE_FORWARD")
+                    self.arduino.send_command("PRESS_RESET_F29") #Press Reset
+                    self.paddleFlowTestResult.setText('PASSED')
+                    self.finish()
+                    self.progressBar.setValue(100)
+                else:
+                    self.paddleFlowTestResult.setText('FAILED')
+                    self.finish()
+                
+            else:
+                print("Error: Could not capture frame for LED verification")
+                self.paddleFlowTestResult.setText('ERROR')
+                self.finish()
+                
+        except Exception as e:
+            print(f"Error in LED verification: {str(e)}")
+            traceback.print_exc()
+            self.highVoltageTestResult.setText('ERROR')
+            self.finish()
+            
     def get_user_connection_preferences(self):
         """Show dialog to get user's webcam and Arduino preferences"""
         dialog = PortSelectionDialog(self)

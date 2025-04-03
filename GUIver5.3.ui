@@ -2,13 +2,12 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
-  <!-- Geometry and basic properties remain the same -->
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>951</width>
-    <height>658</height>
+    <width>983</width>
+    <height>686</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -32,7 +31,6 @@
   <property name="autoFillBackground">
    <bool>false</bool>
   </property>
-  <!-- Updated stylesheet with improved colors, typography, and visual elements -->
   <property name="styleSheet">
    <string notr="true">QMainWindow {
   background-color: #f8f9fa;
@@ -637,7 +635,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>11</pointsize>
                       <weight>75</weight>
                       <bold>true</bold>
                      </font>
@@ -682,7 +680,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>11</pointsize>
                       <weight>75</weight>
                       <bold>true</bold>
                      </font>
@@ -730,7 +728,7 @@ QProgressBar::chunk {
                     <property name="font">
                      <font>
                       <family>Segoe UI</family>
-                      <pointsize>10</pointsize>
+                      <pointsize>11</pointsize>
                       <weight>75</weight>
                       <bold>true</bold>
                      </font>
@@ -782,7 +780,7 @@ QProgressBar::chunk {
              </font>
             </property>
             <property name="styleSheet">
-             <string notr="true"></string>
+             <string notr="true"/>
             </property>
             <property name="echoMode">
              <enum>QLineEdit::Normal</enum>
@@ -826,8 +824,8 @@ QProgressBar::chunk {
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>907</width>
-             <height>547</height>
+             <width>933</width>
+             <height>565</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_5">

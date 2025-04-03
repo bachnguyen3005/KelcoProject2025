@@ -123,6 +123,27 @@ class LEDDetector:
         else:
             message = f"FAILED: Expected 2 green LEDs, but detected {green_leds_count}."
             return False, message
+        
+    def check_leds_F29(self, results):
+        """
+        Check if there are exactly two green LEDs lit up.
+        
+        Args:
+            results (list): List of LED detection results
+        
+        Returns:
+            bool: True if exactly 2 green LEDs are lit, False otherwise
+            str: Detailed result message
+        """
+        green_leds_count = sum(1 for r in results if r['lit'] and r['color'] == 'green')
+        red_leds_count = sum(1 for r in results if r['lit'] and r['color'] == 'red')
+        
+        if (green_leds_count == 1 and red_leds_count == 2) or (green_leds_count == 1 and red_leds_count == 1):
+            message = f"SUCCESSFUL: Exactly 2 red & 1 green LEDs are lit up."
+            return True, message
+        else:
+            message = f"FAILED: Expected 2 red & 1 green LEDs, but detected {green_leds_count}."
+            return False, message
 
     def detect_blinking_led(self, webcam_thread, led_box_coordinates, position_index=1, num_frames=10, interval_ms=200):
         """
