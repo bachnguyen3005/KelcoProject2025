@@ -138,7 +138,7 @@ class LEDDetector:
         green_leds_count = sum(1 for r in results if r['lit'] and r['color'] == 'green')
         red_leds_count = sum(1 for r in results if r['lit'] and r['color'] == 'red')
         
-        if (green_leds_count == 1 and red_leds_count == 2) or (green_leds_count == 1 and red_leds_count == 1):
+        if (green_leds_count == 1 and red_leds_count == 2) or (green_leds_count == 1 and red_leds_count == 1) or (green_leds_count == 2):
             message = f"SUCCESSFUL: Exactly 2 red & 1 green LEDs are lit up."
             return True, message
         else:

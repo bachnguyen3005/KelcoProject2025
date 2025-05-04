@@ -473,6 +473,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.start()
     
     def start(self):
+        
         # Reset UI elements
         self.progressBar.setValue(0)
         self.calNumber.setText('--')
@@ -480,6 +481,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.paddleFlowTestResult.setText('--')
         self.lowVoltageTestResult.setText('--') 
         self.highVoltageTestResult.setText('--')
+        
         
         if not self.is_webcam_open:
             QtWidgets.QMessageBox.warning(self.centralwidget, "Warning", "ERROR: Webcam not open")
@@ -492,16 +494,14 @@ class MainWindow(QtWidgets.QMainWindow):
         print("Starting...")
         
         # Send the PUMP_SEQ command directly
-        try:
-            
-            if(self.modelList.currentText() == "F29"):
-                self.arduino.send_command('PUSH_PADDLE_FORWARD') #Push the paddle to flow if this is F29
-            
-            self.arduino.send_command('PUMP_SEQ')       
+        try: 
+            if(self.modelList.currentText() == "F60" or self.modelList.currentText() == "IPG20" or self.modelList.currentText() == "E30"):       
+                self.arduino.send_command('PUMP_SEQ')
+            else:
+                self.arduino.send_command('PUMP_SEQ_F29')
             # Start the Arduino monitoring timer
             self.arduino_timer.start(100)  # Check every 100ms
             self.timers.append(self.arduino_timer)
-            
         except Exception as e:
             print(f"Error sending PUMP_SEQ command: {str(e)}")
             self.perform_emergency_stop()
@@ -569,10 +569,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.highVoltageTestResult.setText('FAILED')
                     self.progressBar.setValue(100)
                     self.finish()
-                elif response == "START_PUSHING_PADDLE_TO_NO_FLOW_F29":
-                    self.arduino.send_command("PUSH_PADDLE_BACKWARD")
+                elif response == "START_LED_TEST_F29":
                     print("Verifying LEDs for F29...")
                     QTimer.singleShot(500, self.capture_led_state_F29)
+                elif response == "START_HIGH_VOLTAGE_TEST_F29":
+                    self.arduino.send_command("HIGH_VOLTAGE_TEST")
                     
                 
                 
@@ -757,17 +758,17 @@ class MainWindow(QtWidgets.QMainWindow):
                     
                 else:
                     self.paddleFlowTestResult.setText('FAILED')
-                    self.finish()
+                    self.arduino.send_command("HIGH_VOLTAGE_TEST")
                 
             else:
                 print("Error: Could not capture frame for LED verification")
                 self.paddleFlowTestResult.setText('ERROR')
-                self.finish()
+                self.arduino.send_command("HIGH_VOLTAGE_TEST")
                 
         except Exception as e:
             print(f"Error in LED verification: {str(e)}")
             traceback.print_exc()
-            self.highVoltageTestResult.setText('ERROR')
+            self.paddleFlowTestResult.setText('ERROR')
             self.finish()
         
     def capture_led_state_F29(self):
@@ -814,19 +815,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 if verification_success:
                     #Continue with blinking test
                     self.progressBar.setValue(60)
-                    self.arduino.send_command("PUSH_PADDLE_FORWARD")
-                    self.arduino.send_command("PRESS_RESET_F29") #Press Reset
+                    self.arduino.send_command("HIGH_VOLTAGE_TEST")
                     self.paddleFlowTestResult.setText('PASSED')
-                    self.finish()
-                    self.progressBar.setValue(100)
+                    # self.arduino.send_command("HIGH_VOLTAGE_TEST")
+                    
                 else:
+                    self.arduino.send_command("HIGH_VOLTAGE_TEST")
                     self.paddleFlowTestResult.setText('FAILED')
-                    self.finish()
-                
+                    
             else:
                 print("Error: Could not capture frame for LED verification")
                 self.paddleFlowTestResult.setText('ERROR')
-                self.finish()
+                self.arduino.send_command("HIGH_VOLTAGE_TEST")
                 
         except Exception as e:
             print(f"Error in LED verification: {str(e)}")
@@ -886,7 +886,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.led_box_coordinates,
                 position_index=1,  # Position 2 (0-based index)
                 num_frames=30,     # Take 15 frames
-                interval_ms=200    # 100ms between frames
+                interval_ms=200    # 200ms between frames
             )
             
             # Update GUI based on results
@@ -906,7 +906,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     print("LEDs have error...")
                     self.paddleFlowTestResult.setText('FAILED')
-                    self.finish()
+                    self.arduino.send_command("HIGH_VOLTAGE_TEST")
+                    # self.finish()
             
             # After LED verification is complete, we can continue with remaining
             # test steps or finish the test

@@ -1,0 +1,36 @@
+Blink detection for LED at position 2
+Session: 20250404_153500
+Frames captured: 30
+Results: LED at position 2 is CONSTANTLY OFF (all 30 frames)
+
+Frame-by-frame results:
+Frame 1 [15:35:00.860]: OFF
+Frame 2 [15:35:01.074]: OFF
+Frame 3 [15:35:01.287]: OFF
+Frame 4 [15:35:01.501]: OFF
+Frame 5 [15:35:01.714]: OFF
+Frame 6 [15:35:01.926]: OFF
+Frame 7 [15:35:02.140]: OFF
+Frame 8 [15:35:02.348]: OFF
+Frame 9 [15:35:02.563]: OFF
+Frame 10 [15:35:02.777]: OFF
+Frame 11 [15:35:02.992]: OFF
+Frame 12 [15:35:03.206]: OFF
+Frame 13 [15:35:03.420]: OFF
+Frame 14 [15:35:03.637]: OFF
+Frame 15 [15:35:03.851]: OFF
+Frame 16 [15:35:04.065]: OFF
+Frame 17 [15:35:04.279]: OFF
+Frame 18 [15:35:04.494]: OFF
+Frame 19 [15:35:04.708]: OFF
+Frame 20 [15:35:04.921]: OFF
+Frame 21 [15:35:05.142]: OFF
+Frame 22 [15:35:05.357]: OFF
+Frame 23 [15:35:05.572]: OFF
+Frame 24 [15:35:05.786]: OFF
+Frame 25 [15:35:06.000]: OFF
+Frame 26 [15:35:06.214]: OFF
+Frame 27 [15:35:06.429]: OFF
+Frame 28 [15:35:06.644]: OFF
+Frame 29 [15:35:06.859]: OFF
+Frame 30 [15:35:07.074]: OFF
