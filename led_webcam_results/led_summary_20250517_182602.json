@@ -1,0 +1,24 @@
+{
+    "session_start": "2025-05-17 18:25:48",
+    "session_end": "2025-05-17 18:26:02",
+    "duration_seconds": 14.873187780380249,
+    "total_frames": 441,
+    "fps": 29.65067116154741,
+    "led_statistics": {
+        "LED_1": {
+            "on_frames": 0,
+            "off_frames": 100,
+            "colors": {}
+        },
+        "LED_2": {
+            "on_frames": 0,
+            "off_frames": 100,
+            "colors": {}
+        },
+        "LED_3": {
+            "on_frames": 0,
+            "off_frames": 100,
+            "colors": {}
+        }
+    }
+}

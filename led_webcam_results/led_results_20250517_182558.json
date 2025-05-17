@@ -1,0 +1,23 @@
+[
+    {
+        "box_id": 1,
+        "lit": false,
+        "color": "none",
+        "brightness": 49.92307692307692,
+        "timestamp": "2025-05-17 18:25:58.131"
+    },
+    {
+        "box_id": 2,
+        "lit": false,
+        "color": "none",
+        "brightness": 29.237037037037037,
+        "timestamp": "2025-05-17 18:25:58.132"
+    },
+    {
+        "box_id": 3,
+        "lit": false,
+        "color": "none",
+        "brightness": 41.877394636015325,
+        "timestamp": "2025-05-17 18:25:58.132"
+    }
+]

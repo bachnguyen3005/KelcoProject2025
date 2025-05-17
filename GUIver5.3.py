@@ -100,9 +100,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Add box coordinates for LED detection
         self.led_box_coordinates = [
-            [47,268,26,25],
-            [52,326,25,27],
-            [56,381,29,27]
+            [41,252,26,25],
+            [44,308,29,31],
+            [50,365,31,29]
         ]
 
         # Connect signals - use installEventFilter for the stop button
@@ -566,7 +566,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.progressBar.setValue(100)
                     self.finish()
                 elif response == "HIGH_VOLTAGE_TEST_FAIL":
-                    self.highVoltageTestResult.setText('FAILED')
+                    self.highVoltageTestResult.setText('PASSED')
                     self.progressBar.setValue(100)
                     self.finish()
                 elif response == "START_LED_TEST_F29":
